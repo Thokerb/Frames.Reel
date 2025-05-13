@@ -19,16 +19,13 @@ export function registerValidationChecks(services: ReelServices) {
  * Implementation of custom validations.
  */
 export class ReelValidator {
-
-    checkPersonStartsWithCapital(accept: ValidationAcceptor): void {
-        
-    }
-
+    
         checkVariableDeclaration(decl: VariableOverride, accept: ValidationAcceptor): void {
-        if (decl.ref && decl.value) {
+            if (decl.ref !== undefined && decl.value !== undefined) {
             const left = this.inferType(decl.ref);
             const right = this.inferRightType(decl.value);
 
+            
             if(right === 'unknown' || left === 'unknown') { 
                 accept('error', `Type '${right}' is not assignable to type '${left}'.`, {
                     node: decl,

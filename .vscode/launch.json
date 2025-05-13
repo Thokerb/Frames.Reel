@@ -31,5 +31,14 @@
                 "${workspaceFolder}/node_modules/langium"
             ]
         }
+    ],
+     "compounds": [
+        {
+            "name": "Run Extension + Attach to Language Server",
+            "configurations": [
+                "Run Extension",
+                "Attach to Language Server"
+            ]
+        }
     ]
 }

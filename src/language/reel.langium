@@ -31,9 +31,9 @@ PropertiesOverride:
 ;
 
 VariableOverride:
-    (ref=[Variable:ID] '=' value=INT';'
-    |ref=[Variable:ID] '=' value=BooleanValue';'
-    |ref=[Variable:ID] '=' value=STRING';'
+    (ref=[Variable] '=' value=INT';'
+    |ref=[Variable] '=' value=BooleanValue';'
+    |ref=[Variable] '=' value=STRING';'
 );
 
 State:
