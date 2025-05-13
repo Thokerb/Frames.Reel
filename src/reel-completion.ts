@@ -122,6 +122,8 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 				return;
 			}
 
+		}else{
+			super.completionFor(context, next, acceptor);
 		}
 
 		

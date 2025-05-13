@@ -9,8 +9,8 @@ Element:
 ;
 
 AtomicModelWithState:
-    rootState=State
-    rootModel=AtomicModel
+    rootState=State?
+    rootModel=AtomicModel?
 ;
 
 AtomicModel:
