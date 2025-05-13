@@ -34,7 +34,14 @@ VariableOverride:
     (ref=[Variable] '=' value=INT';'
     |ref=[Variable] '=' value=BooleanValue';'
     |ref=[Variable] '=' value=STRING';'
+    |ref=[Variable] '=' value=OBJECT_OVERRIDE
 );
+
+OBJECT_OVERRIDE:
+    '{' 
+        (properties+=PropertiesOverride)*
+    '}'
+;
 
 State:
     'state' name=ID '{' 

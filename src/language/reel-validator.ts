@@ -1,5 +1,5 @@
 import type { Reference, ValidationAcceptor, ValidationChecks } from 'langium';
-import { type ReelAstType, type Variable, type VariableOverride } from './generated/ast.js';
+import { OBJECT_OVERRIDE, type ReelAstType, type Variable, type VariableOverride } from './generated/ast.js';
 import type { ReelServices } from './reel-module.js';
 
 /**
@@ -10,7 +10,7 @@ export function registerValidationChecks(services: ReelServices) {
     const validator = services.validation.ReelValidator;
     const checks: ValidationChecks<ReelAstType> = {
         // AtomicModel: validator.checkPersonStartsWithCapital
-        VariableOverride: validator.checkVariableDeclaration
+        VariableOverride: validator.checkVariableDeclaration,
     };
     registry.register(checks, validator);
 }
@@ -44,15 +44,17 @@ export class ReelValidator {
         }
     }
 
-    inferRightType(node: string | number | boolean): string {
+    inferRightType(node: string | number | boolean | OBJECT_OVERRIDE): string {
         if (typeof node === 'string') {
             return 'StringExpression';
         } else if (typeof node === 'number') {
             return 'IntegerExpression';
         } else if (typeof node === 'boolean') {
             return 'BooleanExpression';
+        } else if (typeof node === 'object') {
+            return 'ObjectExpression';
         }
-        return 'unknown';
+        return typeof node;
 
     }
 
