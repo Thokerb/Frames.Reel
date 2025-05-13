@@ -1,0 +1,45 @@
+// this is how I would expect an atomic definition to look like
+
+
+state BlinkingLightState {
+    bool isOn = false;
+    int count = 0;
+    object engine = {
+        int power = 500
+        string name = "tesla"
+        object owner = {
+            string name = "JOHN DOE"
+            int age = 18  
+        }
+    }
+}
+
+
+atomic model BlinkingLight {
+    state: BlinkingLightState {
+        count = 5
+        engine.power = 600
+        engine.owner = {
+            name = "mrbeast"
+        }
+    }
+
+    function timeAdvance(State state){
+        
+        switch state.isOn:
+            case true: return 5 time
+            case false: return 1 time 
+
+        if(state.isOn == true) {
+            return 5 time
+        }
+
+        if(state.count > 5){
+            return state.count time
+        }
+    }
+
+
+
+
+}

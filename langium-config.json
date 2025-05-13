@@ -1,0 +1,15 @@
+{
+    "projectName": "Reel",
+    "languages": [{
+        "id": "reel",
+        "grammar": "src/language/reel.langium",
+        "fileExtensions": [".reel"],
+        "textMate": {
+            "out": "syntaxes/reel.tmLanguage.json"
+        },
+        "monarch": {
+            "out": "src/syntaxes/reel.monarch.ts"
+        }
+    }],
+    "out": "src/language/generated"
+}
