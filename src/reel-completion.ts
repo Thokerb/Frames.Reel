@@ -4,14 +4,14 @@ import {CompletionItemKind} from "vscode-languageserver";
 import {
 	isAtomicModel, isOBJECT_OVERRIDE,
 	isStateDefinitionOverrides,
-	isVariableOverride,
+	isVariableOverride, isVariableReference,
 } from "./language/generated/ast.js";
 import {ReelInference} from "./reel-infer.js";
 
 
 export class ReelCompletionProvider extends DefaultCompletionProvider {
 	protected override completionFor(context: CompletionContext, next: NextFeature, acceptor: CompletionAcceptor): MaybePromise<void> {
-		console.log('completionFor', context, next, acceptor);
+		// console.log('completionFor', context, next, acceptor);
 		// console.log('completionFor', context.document, context.params, context.token);
 		// console.log('completionFor', context.document.references[0].$refNode?.astNode.$type);
 
@@ -20,13 +20,37 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 		const model = context.node?.$container;
 
 
+
 		
+		if(next.feature.$type === "CrossReference" && next.property === "property"){
+			
+			const variable= context.node;
+			if(variable !== undefined && isVariableReference(variable)){
+				const state = ReelInference.getStateFromVariableReference(variable);
+
+				if (state === undefined) {
+					return;
+				}
+				const path = variable.property.map(x => x.$refText).reverse().slice();
+				const props = ReelInference.getNestedObjectExpression(state, path)?.value.properties;
+				// for each property of the state, create a completion item
+				for (const property of props ?? []) {
+					acceptor(context, {
+						label: property.name,
+						detail: property.$type,
+						kind: CompletionItemKind.Field,
+					});
+				}
+				return;
+			}
+			
+		}
 
 		if (next.type === "VariableOverride" && next.property === "ref") {
 
 
 			// log type
-			console.log("type: ", model?.$type);
+			// console.log("type: ", model?.$type);
 
 			if (isAtomicModel(model)) {
 
@@ -75,7 +99,7 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 
 
 					// for each property of the state, create a completion item
-					for (const property of nestedObjectExpression.value.properties ?? []) {
+					for (const property of nestedObjectExpression?.value.properties ?? []) {
 						acceptor(context, {
 							label: property.name,
 							kind: CompletionItemKind.Field,
@@ -113,7 +137,7 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 				let nestedObjectExpression = ReelInference.getNestedObjectExpression(stateElement, path);
 				
 				// for each property of the state, create a completion item
-				for (const property of nestedObjectExpression.value.properties ?? []) {
+				for (const property of nestedObjectExpression?.value.properties ?? []) {
 					acceptor(context, {
 						label: property.name,
 						kind: CompletionItemKind.Field,
@@ -123,6 +147,7 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 			}
 
 		}else{
+			console.log(context, next)
 			super.completionFor(context, next, acceptor);
 		}
 

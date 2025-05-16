@@ -1,0 +1,36 @@
+state BlinkingLightState {
+    states: [on|off|kabumm];
+    initial= kabumm;
+    bool isOn = true;
+    int count = 1;
+    bool age = false;
+    string t = "232";
+    object engine = {
+        int power = 500;
+        string company = "tesla";
+        object owner = {
+            string fullName = "JOHN DOE";
+            int age = 18;
+        }
+    }
+}
+
+atomic model BlinkingLightModel {
+    state: BlinkingLightState {
+        age = true;
+        engine = {
+            company = "ww";
+            power = 50;
+            owner = {
+                age = 1;            
+                }
+        }
+    }
+
+    section TimeAdvance {
+        state.name is on => engine.power+age+3 TimeUnits; 
+        state.name is off => Infinity TimeUnits;
+        state.name is on with engine.power < 20 => 1 TimeUnits;
+        default => 5 TimeUnits;
+    }
+}

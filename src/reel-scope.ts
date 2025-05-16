@@ -1,11 +1,11 @@
 import {
 	ReferenceInfo, DefaultScopeProvider, Scope, AstNode,
-	Reference
 } from 'langium';
 import {
 	isAtomicModel,
-	isOBJECT_OVERRIDE,
-	isVariableOverride,
+	isExpression,
+	isOBJECT_OVERRIDE, isTimeAdvanceCondition,
+	isVariableOverride, isVariableReference,
 	ObjectExpression,
 	State
 } from './language/generated/ast.js';
@@ -24,10 +24,15 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			if (!previous) {
 				return super.getScope(context);
 			}
+
 			// get the state type TODO
 			if (isAtomicModel(memberCall.$container.$container)) {
 				const stateType = memberCall.$container.$container.stateType;
-				return this.scopeState(stateType);
+				if (stateType.ref === undefined) {
+					return super.getScope(context);
+				}
+				
+				return this.scopeState(stateType.ref);
 			}
 			if (isOBJECT_OVERRIDE(memberCall.$container)) {
 				const {state, path} = ReelInference.getStateFromObjectOverride(memberCall.$container);
@@ -37,15 +42,85 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				}
 
 				const element = ReelInference.getNestedObjectExpression(state.$container.stateType.ref, path);
+				if (element === undefined) {
+					return super.getScope(context);
+				}
 
-				return this.scopeObjectOverride(element);
+				return this.scopeObjectExpression(element);
 
 			}
 		}
+
+		if (isExpression(context.container)) {
+
+				// const state = ReelInference.getStateFromConditionExpression(context.container);
+				// if (state === undefined) {
+				// 	return super.getScope(context);
+				// }
+				
+				// return this.scopeState(state);
+		}
+
+		if(isVariableReference(context.container)){
+			const variable = context.container;
+			console.log('context',context)
+			const state = ReelInference.getStateFromVariableReference(variable);
+			if (state === undefined) {
+				return super.getScope(context);
+			}
+			
+			// only depth 0 
+			if(context.index === 0 ) {
+				return this.scopeState(state);
+			}
+			
+			// dont take last element of the path
+			const path = variable.property.map(x => x.$refText).reverse().slice(variable.property.length - (context.index ?? 0));
+			console.log(path)
+
+
+			if (path.length === 0) {
+
+
+				return this.scopeState(state);
+			}
+			
+			const objectExpression = ReelInference.getNestedObjectExpression(state, path);
+			if (objectExpression === undefined) {
+				
+				
+				return this.scopeAllVariablesOfState(state);
+			}
+			console.log(objectExpression)
+
+			return  this.scopeObjectExpression(objectExpression);
+		}
+		
+		if(isTimeAdvanceCondition(context.container)) {
+			const state = context.container;
+			if (state.$container.$container.stateType.ref === undefined) {
+				return super.getScope(context);
+			}
+			
+			return this.createScopeForNodes((context.container.$container.$container.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
+				$type: x.$type,
+				$containerIndex: x.$containerIndex,
+				name: x.name,
+				$containerProperty: x.$containerProperty,
+				$container: state.$container.$container,
+				$containerRef: state.$container.$container,
+				$cstNode: state.$cstNode,
+				$document: state.$document,
+			}) ?? []));
+		}
+		
+
+		console.log(context.container.$type)
+
 		return super.getScope(context);
 	}
 
-	private scopeObjectOverride(objectOverride: ObjectExpression): Scope {
+	private scopeObjectExpression(objectOverride: ObjectExpression): Scope {
 
 		var allMembers: Array<AstNode> = [];
 
@@ -67,25 +142,50 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		return this.createScopeForNodes(allMembers);
 	}
 
-	private scopeState(classItem: Reference<State>): Scope {
+	private scopeState(classItem: State): Scope {
 
 		var allMembers: Array<AstNode> = [];
 
 		// add all properties of the class
-		if (classItem?.ref?.properties) {
-			allMembers = allMembers.concat(classItem.ref.properties.map((property) => <AstNode>{
+		if (classItem.properties) {
+			allMembers = allMembers.concat(classItem.properties.map((property) => <AstNode>{
 				$type: property.$type,
 				name: property.name,
-				$container: classItem.ref,
+				$container: classItem,
 				$containerRef: classItem,
-				$containerType: classItem?.ref?.$type,
-				$containerIndex: classItem?.ref?.$containerIndex,
-				$containerProperty: classItem?.ref?.$containerProperty,
+				$containerType: classItem?.$type,
+				$containerIndex: classItem?.$containerIndex,
+				$containerProperty: classItem?.$containerProperty,
 				$cstNode: property.$cstNode,
 				$document: property.$document,
 			}));
 		}
 
 		return this.createScopeForNodes(allMembers);
+	}
+
+	// for the current variable we want to get all relevant variables or nested variables (with var.var as a prefix)
+	private scopeAllVariablesOfState(state: State): Scope {
+		
+		var allMembers: Array<AstNode> = [];
+
+		// flatten all nested variables by going into ObjectExpression
+		const nestedVariables = ReelInference.getAllVariables(state);
+		// add all properties of the class
+		allMembers = allMembers.concat(nestedVariables.map((property) => <AstNode>{
+			$type: property.$type,
+			name: property.name,
+			$container: state,
+			$containerRef: state,
+			$containerType: state?.$type,
+			$containerIndex: state?.$containerIndex,
+			$containerProperty: state?.$containerProperty,
+			$cstNode: property.$cstNode,
+			$document: property.$document,
+		}));
+		
+
+		return this.createScopeForNodes(allMembers);
+		
 	}
 }

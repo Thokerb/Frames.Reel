@@ -1,5 +1,6 @@
 import type {Reference, ValidationAcceptor, ValidationChecks} from 'langium';
 import {
+	ConditionExpression, isBooleanComparisonOperator, isIntegerComparisonOperator, isObjectComparisonOperator, OBJECT,
 	OBJECT_OVERRIDE, ObjectExpression,
 	type ReelAstType,
 	State,
@@ -22,6 +23,7 @@ export function registerValidationChecks(services: ReelServices) {
 		StateDefinitionOverrides: validator.checkUniqueParamsStateOverride,
 		OBJECT_OVERRIDE: validator.checkUniqueParamsObjectOverride,
 		ObjectExpression: validator.checkUniqueParamsObjectExpression,
+		ConditionExpression: validator.checkComparisonOperator,
 	};
 	registry.register(checks, validator);
 }
@@ -45,6 +47,51 @@ export class ReelValidator {
 		});
 	}
 
+	checkComparisonOperator(def: ConditionExpression, accept: ValidationAcceptor): void {
+		if(def.variable?.ref !== undefined) {
+			const left = this.inferType(def.variable);
+			const comparisonOperator = def.operator
+			let isNoError = true;
+			
+			switch (left){
+				case "BooleanExpression":
+					isNoError = isBooleanComparisonOperator(comparisonOperator);
+					break;
+				case "ObjectExpression":
+					isNoError = isObjectComparisonOperator(comparisonOperator);
+					break;
+				case "IntegerExpression":
+					isNoError = isIntegerComparisonOperator(comparisonOperator);
+					break;
+				case "StringExpression":
+					isNoError = isIntegerComparisonOperator(comparisonOperator);
+					break;
+				case "unknown":
+					isNoError = true;
+					break;
+			}
+			if (!isNoError) {
+				accept('error', `Type '${comparisonOperator}' is not assignable to type '${left}'.`, {
+					node: def,
+					property: 'operator'
+				});
+			}
+
+			if(def.value !== undefined) {
+				const right = this.inferRightType(def.value);
+				if (right !== left) {
+					accept('error', `Type '${right}' is not assignable to type '${left}'.`, {
+						node: def,
+						property: 'value'
+					});
+					return;
+				}
+
+			}
+			
+		}
+	}
+	
 	checkUniqueParamsObjectExpression(def: ObjectExpression, accept: ValidationAcceptor): void {
 		const reported = new Set();
 		def.value.properties.forEach(p => {
@@ -102,7 +149,7 @@ export class ReelValidator {
 		}
 	}
 
-	inferRightType(node: string | number | boolean | OBJECT_OVERRIDE): string {
+	inferRightType(node: string | number | boolean | OBJECT_OVERRIDE | OBJECT ): string {
 		if (typeof node === 'string') {
 			return 'StringExpression';
 		} else if (typeof node === 'number') {
@@ -116,7 +163,7 @@ export class ReelValidator {
 
 	}
 
-	inferType(node: Reference<Variable>): string {
+	inferType(node: Reference<Variable>):  "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" {
 		return node.ref?.$type ?? 'unknown';
 	}
 

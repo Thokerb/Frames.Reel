@@ -2,6 +2,7 @@
 
 
 state BlinkingLightState {
+    name: ["on","off","KABUMM"]
     bool isOn = false;
     int count = 0;
     object engine = {
@@ -24,19 +25,80 @@ atomic model BlinkingLight {
         }
     }
 
-    function timeAdvance(State state){
-        
-        switch state.isOn:
-            case true: return 5 time
-            case false: return 1 time 
+    section Ports{
+        string input InPort1;
+        int input InPort2;
+        string output OutPort1;
+    }
 
-        if(state.isOn == true) {
-            return 5 time
+
+    section timeAdvance {
+        state.name "on" => 5 TU;
+        state.name "off" => 12 TU;
+        state.name "off" with (state.engine == "power") => 1 TU;
+        state.name "on" with Blinked8Times => 3 TU;
+        state.name "KABUMM" => state.count TU;
+        state.name "KABUMM2" => state.count*state.power TU;
+    }
+
+    section internalTransition {
+
+        // optional naming "receive"
+        condition("receive"): state.name "off" with (state.engine == "power"):
+        {
+            state.name = "on"
+            state.count = state.count + 1;
         }
 
-        if(state.count > 5){
-            return state.count time
+        condition: state.name "off":
+        {
+            state.name = "on"
         }
+
+        condition: state.name "on" 
+        {
+            state.name = "off"
+        }
+
+        condition: state.name "on" with Blinked8Times
+        {
+            state.name = "KABUMM"
+        }
+    }
+
+    section externalTransition {
+
+        // when we dont care about the value
+        condition state.name "on" with receivedPort(InPort1):
+        {
+            state.name = "off"
+        }
+
+        received InPort1 as values
+        {
+            condition state.name "on" with values[0] == "explode" and state.engine == "tesla"
+            {
+                state.name = "KABUMM"
+            }
+
+            condition state.name "on" with ShouldExplode(state,values)
+            {
+                state.name = "KABUMM2"
+                state.engine = values[0]
+            }
+        }
+
+    }
+
+    port-state-condition ShouldExplode(State state,InPort1 port){
+        port.values
+        port.count
+        port.any
+        port.values[]
+    }
+
+    state-condition Blinked8Times(State state){
+        return state.count == 8;
     }
 
 
