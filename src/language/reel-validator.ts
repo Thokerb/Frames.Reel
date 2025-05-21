@@ -1,7 +1,14 @@
 import type {Reference, ValidationAcceptor, ValidationChecks} from 'langium';
 import {
-	ConditionExpression, isBooleanComparisonOperator, isIntegerComparisonOperator, isObjectComparisonOperator, OBJECT,
-	OBJECT_OVERRIDE, ObjectExpression,
+	BinaryExpression,
+	ConditionExpression,
+	Expression, isBinaryExpression,
+	isBooleanComparisonOperator,
+	isIntegerComparisonOperator,
+	isObjectComparisonOperator, isTimeAdvanceCase, isVariableReference,
+	OBJECT,
+	OBJECT_OVERRIDE,
+	ObjectExpression,
 	type ReelAstType,
 	State,
 	StateDefinitionOverrides,
@@ -24,6 +31,7 @@ export function registerValidationChecks(services: ReelServices) {
 		OBJECT_OVERRIDE: validator.checkUniqueParamsObjectOverride,
 		ObjectExpression: validator.checkUniqueParamsObjectExpression,
 		ConditionExpression: validator.checkComparisonOperator,
+		Expression: validator.binaryExpressionCheck,
 	};
 	registry.register(checks, validator);
 }
@@ -167,4 +175,169 @@ export class ReelValidator {
 		return node.ref?.$type ?? 'unknown';
 	}
 
+	binaryExpressionCheck(node: Expression, accept: ValidationAcceptor) {
+		
+		if(isVariableReference(node)){
+			return;
+		}else{
+			
+			
+			if(isTimeAdvanceCase(node.$container)) {
+				
+				if(node.$cstNode?.text === 'Infinity'){
+					return;
+				}
+				
+				if(node.operator === undefined && node?.$cstNode?.text !== undefined) {
+					return;
+				}else{
+					if(node.operator === undefined) {
+						accept('error', `Required value 'TimeValue' is missing.`, {
+							node: node,
+							property: 'operator'
+						});
+					}
+				}
+				
+				if(node.operator !== '+' && node.operator !== '-') {
+					accept('error', `Type '${node.operator}' is not assignable to type 'isTimeAdvanceCase'.`, {
+						node: node,
+						property: 'operator'
+					});
+				}else {
+					return;
+				}
+			}
+			
+			
+			if(node.left === undefined || node.right === undefined) {
+				return;
+			}
+			
+			
+			const leftType = this.CheckType(node.left);
+			const rightType = this.CheckType(node.right);
+			
+			if(isError(leftType)) {
+				accept('error', `Type '${leftType.node} is not correct'.`, {
+					node: leftType.node,
+					property: leftType.property
+				});
+				return;
+			}
+			if(isError(rightType)) {
+				accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
+					node: rightType.node,
+					property: rightType.property
+				});
+				return;
+			}
+			
+			if (leftType !== rightType) {
+				accept('error', `Type '${leftType}' is not compatible to type '${rightType}'.`, {
+					node: node,
+					property: 'left'
+				});
+				return;
+			}
+			
+			let isNoError = true;
+			
+			switch (leftType){
+				case "BooleanExpression":
+					isNoError = node.operator === "==" || node.operator === "!=";
+					break;
+				case "ObjectExpression":
+					isNoError = true;
+					break;
+				case "IntegerExpression":
+					isNoError = node.operator === "==" || node.operator === "!=" || node.operator === "<" || node.operator === "<=" || node.operator === ">" || node.operator === ">=";
+					break;
+				case "StringExpression":
+					isNoError = node.operator === "==" || node.operator === "!=";
+					break;
+				case "unknown":
+					isNoError = true;
+					break;
+			}
+			if (!isNoError) {
+				accept('error', `Type '${node.operator}' is not assignable to type '${leftType}'.`, {
+					node: node,
+					property: 'operator'
+				});
+			}
+		}
+	}
+	
+	
+	private CheckType(node: Expression): "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error {
+		
+		if (isVariableReference(node)){
+			// get last element of the path
+			return this.inferType(node.property[node.property.length - 1])
+		}
+		if(isBinaryExpression(node))
+		{
+			return this.checkBinary(node)
+		}
+		
+		// in this case node is a literal
+		// force get node.cstNode.text
+		const text = (node as any).$cstNode.text;
+		
+		if (text === undefined) {
+			return <Error>{
+				error: `Type '${node}' is not correct`,
+				node: node,
+				property: 'left'
+			}
+		}
+		
+		// check if text is a number
+		if (!isNaN(text)) {
+			return 'IntegerExpression';
+		}
+		// check if text is a boolean
+		if (text === 'true' || text === 'false') {
+			return 'BooleanExpression';
+		}
+		// check if text is a string
+		return "StringExpression";
+	}
+	
+	private checkBinary(node: BinaryExpression): Error | "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" {
+
+		const leftType = this.CheckType(node.left);
+		
+		if (isError(leftType)) {
+			return leftType;
+		}
+		
+		const rightType = this.CheckType(node.right);
+		
+		if (isError(rightType)) {
+			return rightType;
+		}
+		
+		if (leftType !== rightType) {
+			return <Error>{
+				error: `Type '${leftType}' is not compatible to type '${rightType}'.`,
+				node: node,
+				property: 'left'
+			}
+		}
+		return leftType;
+	}
+
+
+
+}
+
+function isError(node: any): node is Error {
+	return (node as Error).error !== undefined;
+}
+interface Error {
+	error: string;
+	node: Expression;
+	property: string;
 }
