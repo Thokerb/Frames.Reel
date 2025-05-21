@@ -66,36 +66,6 @@ TimeAdvanceCondition:
 
 
 
-ConditionExpression:
-    ('!'?)'(' 
-    ( condition+=ConditionExpression 'and' condition+=ConditionExpression
-    | condition+=ConditionExpression 'or' condition+=ConditionExpression
-    | condition+=ConditionExpression ')'
-    | booleanValue=BooleanValue
-    | (variable=[Variable] operator=(BooleanComparisonOperator) value=BooleanValue)
-    | (variable=[Variable] operator=(IntegerComparisonOperator) value=INT)
-    | (variable=[Variable] operator=(StringComparisonOperator) value=STRING) 
-    | (variable=[Variable] operator=(ObjectComparisonOperator) value=OBJECT) // TODO: change
-    )
-    ')'
-;
-
-IntegerComparisonOperator returns string:
-    BooleanComparisonOperator | '==' | '!=' | '<' | '<=' | '>' | '>='
-;
-
-StringComparisonOperator returns string:
-    'is' | 'begins' | 'ends' | 'contains'
-;
-
-ObjectComparisonOperator returns string:
-    'is' | 'has'
-;
-
-BooleanComparisonOperator returns string:
-    'is' | 'isNot'
-;
-
 
 StateDefinitionOverrides:
     ('{'

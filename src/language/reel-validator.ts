@@ -1,11 +1,7 @@
 import type {Reference, ValidationAcceptor, ValidationChecks} from 'langium';
 import {
 	BinaryExpression,
-	ConditionExpression,
-	Expression, isBinaryExpression,
-	isBooleanComparisonOperator,
-	isIntegerComparisonOperator,
-	isObjectComparisonOperator, isTimeAdvanceCase, isVariableReference,
+	Expression, isBinaryExpression, isTimeAdvanceCase, isVariableReference,
 	OBJECT,
 	OBJECT_OVERRIDE,
 	ObjectExpression,
@@ -30,7 +26,6 @@ export function registerValidationChecks(services: ReelServices) {
 		StateDefinitionOverrides: validator.checkUniqueParamsStateOverride,
 		OBJECT_OVERRIDE: validator.checkUniqueParamsObjectOverride,
 		ObjectExpression: validator.checkUniqueParamsObjectExpression,
-		ConditionExpression: validator.checkComparisonOperator,
 		Expression: validator.binaryExpressionCheck,
 	};
 	registry.register(checks, validator);
@@ -53,51 +48,6 @@ export class ReelValidator {
 			}
 			reported.add(p.ref.ref?.name);
 		});
-	}
-
-	checkComparisonOperator(def: ConditionExpression, accept: ValidationAcceptor): void {
-		if(def.variable?.ref !== undefined) {
-			const left = this.inferType(def.variable);
-			const comparisonOperator = def.operator
-			let isNoError = true;
-			
-			switch (left){
-				case "BooleanExpression":
-					isNoError = isBooleanComparisonOperator(comparisonOperator);
-					break;
-				case "ObjectExpression":
-					isNoError = isObjectComparisonOperator(comparisonOperator);
-					break;
-				case "IntegerExpression":
-					isNoError = isIntegerComparisonOperator(comparisonOperator);
-					break;
-				case "StringExpression":
-					isNoError = isIntegerComparisonOperator(comparisonOperator);
-					break;
-				case "unknown":
-					isNoError = true;
-					break;
-			}
-			if (!isNoError) {
-				accept('error', `Type '${comparisonOperator}' is not assignable to type '${left}'.`, {
-					node: def,
-					property: 'operator'
-				});
-			}
-
-			if(def.value !== undefined) {
-				const right = this.inferRightType(def.value);
-				if (right !== left) {
-					accept('error', `Type '${right}' is not assignable to type '${left}'.`, {
-						node: def,
-						property: 'value'
-					});
-					return;
-				}
-
-			}
-			
-		}
 	}
 	
 	checkUniqueParamsObjectExpression(def: ObjectExpression, accept: ValidationAcceptor): void {

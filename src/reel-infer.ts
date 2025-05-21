@@ -1,6 +1,6 @@
 ﻿import {
 	BinaryExpression,
-	ConditionExpression, isBinaryExpression,
+	isBinaryExpression,
 	isObjectExpression,
 	isState, isStateDefinitionOverrides, isTimeAdvanceCase, isTimeAdvanceCondition,
 	OBJECT_OVERRIDE,
@@ -60,22 +60,6 @@ export class ReelInference{
 		throw new Error("No state found for object expression");
 	}
 
-	static getStateFromConditionExpression(container: ConditionExpression): State | undefined {
-		
-		return undefined;
-		// let current = container.$container;
-		
-		// while (true){
-		// 	if(isConditionExpression(current)) {
-		// 		current = current.$container;
-		// 	}
-		// 	if(isTimeAdvanceCondition(current)){
-		// 		break;
-		// 	}
-		// }
-		// return current.$container.$container.stateType.ref;
-		
-	}
 
 	static getStateFromVariableReference(variable: VariableReference): State | undefined  {
 		

@@ -28,9 +28,9 @@ atomic model BlinkingLightModel {
     }
 
     section TimeAdvance {
-        state.name is on => engine.power+age+3 TimeUnits; 
+        state.name is on => engine.power+3 TimeUnits; 
         state.name is off => Infinity TimeUnits;
-        state.name is on with engine.power < 20 => 1 TimeUnits;
+        state.name is on with engine.owner.age < 20 => 1 TimeUnits;
         default => 5 TimeUnits;
     }
 }
