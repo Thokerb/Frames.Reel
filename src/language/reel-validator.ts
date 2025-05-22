@@ -1,7 +1,7 @@
 import type {Reference, ValidationAcceptor, ValidationChecks} from 'langium';
 import {
 	BinaryExpression,
-	Expression, isBinaryExpression, isTimeAdvanceCase, isVariableReference,
+	Expression, isBinaryExpression, isStateDefinitionOverridesWithBecome, isTimeAdvanceCase, isVariableReference,
 	OBJECT,
 	OBJECT_OVERRIDE,
 	ObjectExpression,
@@ -87,8 +87,7 @@ export class ReelValidator {
 		if (decl.ref !== undefined && decl.value !== undefined) {
 			const left = this.inferType(decl.ref);
 			const right = this.inferRightType(decl.value);
-
-
+			
 			if (right === 'unknown' || left === 'unknown') {
 				accept('error', `Type '${right}' is not assignable to type '${left}'.`, {
 					node: decl,
@@ -131,6 +130,33 @@ export class ReelValidator {
 			return;
 		}else{
 			
+			if( isStateDefinitionOverridesWithBecome(node.$container) && isStateDefinitionOverridesWithBecome(node.$container) ){
+
+				// operator must be = 
+				if(node.operator === undefined) {
+					accept('error', `Required value 'operator' is missing.`, {
+						node: node,
+						property: 'operator'
+					});
+				}
+				if(node.operator !== '=') {
+					accept('error', `Type '${node.operator}' is not assignable to type 'StateDefinitionOverridesWithBecome'.`, {
+						node: node,
+						property: 'operator'
+					});
+				}
+
+				const leftType = this.CheckType(node.left);
+				const rightType = this.CheckType(node.right);
+
+				if(this.CompareLeftRightHasError(leftType, rightType, node, accept)){
+					return;
+				}
+			
+				return;
+			
+			}
+			
 			
 			if(isTimeAdvanceCase(node.$container)) {
 				
@@ -168,28 +194,10 @@ export class ReelValidator {
 			const leftType = this.CheckType(node.left);
 			const rightType = this.CheckType(node.right);
 			
-			if(isError(leftType)) {
-				accept('error', `Type '${leftType.node} is not correct'.`, {
-					node: leftType.node,
-					property: leftType.property
-				});
+			if(this.CompareLeftRightHasError(leftType, rightType, node, accept)){
 				return;
 			}
-			if(isError(rightType)) {
-				accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
-					node: rightType.node,
-					property: rightType.property
-				});
-				return;
-			}
-			
-			if (leftType !== rightType) {
-				accept('error', `Type '${leftType}' is not compatible to type '${rightType}'.`, {
-					node: node,
-					property: 'left'
-				});
-				return;
-			}
+
 			
 			let isNoError = true;
 			
@@ -280,7 +288,32 @@ export class ReelValidator {
 	}
 
 
+	private CompareLeftRightHasError(leftType: "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error, rightType: "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error,node:BinaryExpression, accept: ValidationAcceptor): boolean {
+		if(isError(leftType)) {
+			accept('error', `Type '${leftType.node} is not correct'.`, {
+				node: leftType.node,
+				property: leftType.property
+			});
+			return true;
+		}
+		if(isError(rightType)) {
+			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
+				node: rightType.node,
+				property: rightType.property
+			});
+			return true;
+		}
 
+		if (leftType !== rightType) {
+			accept('error', `Type '${leftType}' is not compatible to type '${rightType}'.`, {
+				node: node,
+				property: 'left'
+			});
+			return true;
+		}
+		
+		return false;
+	}
 }
 
 function isError(node: any): node is Error {

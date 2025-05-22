@@ -85,7 +85,7 @@ StateDefinitionOverrides:
 StateDefinitionOverridesWithBecome:
     ('{'
         ('state''.''name' 'becomes' stateRef=[StateName] ';')
-        (properties+=Assignment)* 
+        (properties+=Assignment ';')* 
     '}')
 ;
 
