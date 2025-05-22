@@ -4,7 +4,7 @@ import {
 import {
 	isAtomicModel,
 	isExpression,
-	isOBJECT_OVERRIDE, isTimeAdvanceCondition,
+	isOBJECT_OVERRIDE, isStateDefinitionOverridesWithBecome, isTimeAdvanceCondition,
 	isVariableOverride, isVariableReference,
 	ObjectExpression,
 	State
@@ -114,6 +114,24 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			}) ?? []));
 		}
 		
+		if(isStateDefinitionOverridesWithBecome(context.container)){
+			const state = context.container;
+			if (state.$container.$container.stateType.ref === undefined) {
+				return super.getScope(context);
+			}
+
+			return this.createScopeForNodes((context.container.$container.$container.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
+				$type: x.$type,
+				$containerIndex: x.$containerIndex,
+				name: x.name,
+				$containerProperty: x.$containerProperty,
+				$container: state.$container.$container,
+				$containerRef: state.$container.$container,
+				$cstNode: state.$cstNode,
+				$document: state.$document,
+			}) ?? []));
+		}
+		
 
 		console.log(context.container.$type)
 
@@ -129,11 +147,11 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			allMembers = allMembers.concat(objectOverride.value.properties.map((property) => <AstNode>{
 				$type: property.$type,
 				name: property.name,
-				$container: objectOverride,
-				$containerRef: objectOverride.value,
-				$containerType: objectOverride.$type,
-				$containerIndex: objectOverride.$containerIndex,
-				$containerProperty: objectOverride.$containerProperty,
+				$container: property,
+				$containerRef: property.value,
+				$containerType: property.$type,
+				$containerIndex: property.$containerIndex,
+				$containerProperty: property.$containerProperty,
 				$cstNode: property.$cstNode,
 				$document: property.$document,
 			}));
@@ -154,8 +172,8 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				$container: classItem,
 				$containerRef: classItem,
 				$containerType: classItem?.$type,
-				$containerIndex: classItem?.$containerIndex,
-				$containerProperty: classItem?.$containerProperty,
+				$containerIndex: property?.$containerIndex,
+				$containerProperty: property?.$containerProperty,
 				$cstNode: property.$cstNode,
 				$document: property.$document,
 			}));
@@ -175,11 +193,11 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		allMembers = allMembers.concat(nestedVariables.map((property) => <AstNode>{
 			$type: property.$type,
 			name: property.name,
-			$container: state,
-			$containerRef: state,
-			$containerType: state?.$type,
-			$containerIndex: state?.$containerIndex,
-			$containerProperty: state?.$containerProperty,
+			$container: property.$container,
+			$containerRef: property.$container,
+			$containerType: property?.$type,
+			$containerIndex: property?.$containerIndex,
+			$containerProperty: property?.$containerProperty,
 			$cstNode: property.$cstNode,
 			$document: property.$document,
 		}));

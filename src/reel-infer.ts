@@ -2,11 +2,20 @@
 	BinaryExpression,
 	isBinaryExpression,
 	isObjectExpression,
-	isState, isStateDefinitionOverrides, isTimeAdvanceCase, isTimeAdvanceCondition,
+	isState,
+	isStateDefinitionOverrides,
+	isStateDefinitionOverridesWithBecome,
+	isTimeAdvanceCase,
+	isTimeAdvanceCondition,
 	OBJECT_OVERRIDE,
 	ObjectExpression,
-	State, StateDefinitionOverrides, TimeAdvanceCase, TimeAdvanceCondition,
-	Variable, VariableReference
+	State,
+	StateDefinitionOverrides,
+	StateDefinitionOverridesWithBecome,
+	TimeAdvanceCase,
+	TimeAdvanceCondition,
+	Variable,
+	VariableReference
 } from "./language/generated/ast.js";
 
 export class ReelInference{
@@ -63,7 +72,7 @@ export class ReelInference{
 
 	static getStateFromVariableReference(variable: VariableReference): State | undefined  {
 		
-		let current: BinaryExpression | TimeAdvanceCase | TimeAdvanceCondition = variable.$container;
+		let current:  BinaryExpression | StateDefinitionOverridesWithBecome | TimeAdvanceCase | TimeAdvanceCondition = variable.$container;
 
 		while (true){
 			if(isBinaryExpression(current)) {
@@ -75,12 +84,20 @@ export class ReelInference{
 			if(isTimeAdvanceCondition(current)){
 				break;
 			}
+			
+			if(isStateDefinitionOverridesWithBecome(current)){
+				break;
+			}
 		}
 		
 		if(isTimeAdvanceCase(current)){
 			return current.$container.stateType.ref;
 		}
 		if(isTimeAdvanceCondition(current)){
+			return current.$container.$container.stateType.ref;
+		}
+		
+		if(isStateDefinitionOverridesWithBecome(current)){
 			return current.$container.$container.stateType.ref;
 		}
 		

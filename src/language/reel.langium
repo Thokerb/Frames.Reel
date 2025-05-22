@@ -22,8 +22,9 @@ AtomicModel:
         ('section' 'TimeAdvance' '{' 
             (timeAdvanceCases+=TimeAdvanceCase)*
         '}')?
-
-        '}'
+        ('section' 'internalTransition' '{'
+            (internalTransitionCases+=InternalTransitionCase)*
+        '}')
 ;
 
 //         string input InPort1;
@@ -34,6 +35,12 @@ Port:
 
 PortType returns string:
     'InPort' | 'OutPort'
+;
+
+
+
+InternalTransitionCase:
+    'condition''('name=ID?')' ':' condition=TimeAdvanceCondition '=>' overrides=StateDefinitionOverridesWithBecome
 ;
 
 
@@ -72,6 +79,16 @@ StateDefinitionOverrides:
         (properties+=PropertiesOverride)* 
     '}')
 ;
+
+
+
+StateDefinitionOverridesWithBecome:
+    ('{'
+        ('state''.''name' 'becomes' stateRef=[StateName] ';')
+        (properties+=Assignment)* 
+    '}')
+;
+
 
 PropertiesOverride:
     VariableOverride
