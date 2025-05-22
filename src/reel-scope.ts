@@ -107,10 +107,10 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				$containerIndex: x.$containerIndex,
 				name: x.name,
 				$containerProperty: x.$containerProperty,
-				$container: state.$container.$container,
-				$containerRef: state.$container.$container,
-				$cstNode: state.$cstNode,
-				$document: state.$document,
+				$container: x.$container,
+				$containerRef: x.$container,
+				$cstNode: x.$cstNode,
+				$document: x.$document,
 			}) ?? []));
 		}
 		
@@ -125,10 +125,10 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				$containerIndex: x.$containerIndex,
 				name: x.name,
 				$containerProperty: x.$containerProperty,
-				$container: state.$container.$container,
-				$containerRef: state.$container.$container,
-				$cstNode: state.$cstNode,
-				$document: state.$document,
+				$container: x.$container,
+				$containerRef: x.$container,
+				$cstNode: x.$cstNode,
+				$document: x.$document,
 			}) ?? []));
 		}
 		
