@@ -22,7 +22,8 @@ atomic model BlinkingLightModel {
             company = "ww";
             power = 50;
             owner = {
-                age = 1;            
+                age = 1;           
+                fullName = "2"; 
                 }
         }
     }
@@ -33,4 +34,17 @@ atomic model BlinkingLightModel {
         state.name is on with engine.owner.age < 20 => 1 TimeUnits;
         default => 5 TimeUnits;
     }
-}
+
+    section internalTransition {
+
+        condition(receive): state.name is on => {
+            state.name becomes kabumm;
+            age = true;
+
+
+        }
+
+        condition(): state.name is kabumm => {
+            state.name becomes kabumm;
+        }
+    }

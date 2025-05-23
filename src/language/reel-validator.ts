@@ -1,7 +1,11 @@
 import type {Reference, ValidationAcceptor, ValidationChecks} from 'langium';
 import {
 	BinaryExpression,
-	Expression, isBinaryExpression, isStateDefinitionOverridesWithBecome, isTimeAdvanceCase, isVariableReference,
+	Expression,
+	isBinaryExpression,
+	isStateDefinitionOverridesWithBecome,
+	isTimeAdvanceCase,
+	isVariableReference,
 	OBJECT,
 	OBJECT_OVERRIDE,
 	ObjectExpression,
@@ -125,105 +129,124 @@ export class ReelValidator {
 	}
 
 	binaryExpressionCheck(node: Expression, accept: ValidationAcceptor) {
+		function isBinaryOrBoolean(left: Expression) {
+			return isBinaryExpression(left) || (isVariableReference(left) && left.property[left.property.length - 1].ref?.$type === 'BooleanExpression');
+		}
+
+		// we always check the top node down
 		
-		if(isVariableReference(node)){
+		
+		if (isVariableReference(node)) {
 			return;
-		}else{
-			
-			if( isStateDefinitionOverridesWithBecome(node.$container) && isStateDefinitionOverridesWithBecome(node.$container) ){
+		}
 
-				// operator must be = 
-				if(node.operator === undefined) {
-					accept('error', `Required value 'operator' is missing.`, {
-						node: node,
-						property: 'operator'
-					});
-				}
-				if(node.operator !== '=') {
-					accept('error', `Type '${node.operator}' is not assignable to type 'StateDefinitionOverridesWithBecome'.`, {
-						node: node,
-						property: 'operator'
-					});
-				}
+		if (isStateDefinitionOverridesWithBecome(node.$container)) {
 
-				const leftType = this.CheckType(node.left);
-				const rightType = this.CheckType(node.right);
-
-				if(this.CompareLeftRightHasError(leftType, rightType, node, accept)){
-					return;
-				}
+			const topExpression = this.GetTopExpression(node);
 			
-				return;
-			
-			}
-			
-			
-			if(isTimeAdvanceCase(node.$container)) {
-				
-				if(node.$cstNode?.text === 'Infinity'){
-					return;
-				}
-				
-				if(node.operator === undefined && node?.$cstNode?.text !== undefined) {
-					return;
-				}else{
-					if(node.operator === undefined) {
-						accept('error', `Required value 'TimeValue' is missing.`, {
-							node: node,
-							property: 'operator'
-						});
-					}
-				}
-				
-				if(node.operator !== '+' && node.operator !== '-') {
-					accept('error', `Type '${node.operator}' is not assignable to type 'isTimeAdvanceCase'.`, {
-						node: node,
-						property: 'operator'
-					});
-				}else {
-					return;
-				}
-			}
-			
-			
-			if(node.left === undefined || node.right === undefined) {
-				return;
-			}
-			
-			
-			const leftType = this.CheckType(node.left);
-			const rightType = this.CheckType(node.right);
-			
-			if(this.CompareLeftRightHasError(leftType, rightType, node, accept)){
-				return;
-			}
-
-			
-			let isNoError = true;
-			
-			switch (leftType){
-				case "BooleanExpression":
-					isNoError = node.operator === "==" || node.operator === "!=";
-					break;
-				case "ObjectExpression":
-					isNoError = true;
-					break;
-				case "IntegerExpression":
-					isNoError = node.operator === "==" || node.operator === "!=" || node.operator === "<" || node.operator === "<=" || node.operator === ">" || node.operator === ">=";
-					break;
-				case "StringExpression":
-					isNoError = node.operator === "==" || node.operator === "!=";
-					break;
-				case "unknown":
-					isNoError = true;
-					break;
-			}
-			if (!isNoError) {
-				accept('error', `Type '${node.operator}' is not assignable to type '${leftType}'.`, {
+			// operator must be = 
+			if (node.operator === undefined) {
+				accept('error', `Required value 'operator' is missing.`, {
 					node: node,
 					property: 'operator'
 				});
 			}
+			if (topExpression.operator !== '=') {
+				accept('error', `Type '${node.operator}' is not assignable to type 'StateDefinitionOverridesWithBecome'.`, {
+					node: node,
+					property: 'operator'
+				});
+			}
+
+			const leftType = this.CheckType(node.left);
+			const rightType = this.CheckType(node.right);
+
+			if (this.CompareLeftRightHasError(leftType, rightType, node, accept)) {
+				return;
+			}
+
+			return;
+
+		}
+
+
+		if (isTimeAdvanceCase(node.$container)) {
+
+			if (node.$cstNode?.text === 'Infinity') {
+				return;
+			}
+
+			if (node.operator === undefined && node?.$cstNode?.text !== undefined) {
+				return;
+			} else {
+				if (node.operator === undefined) {
+					accept('error', `Required value 'TimeValue' is missing.`, {
+						node: node,
+						property: 'operator'
+					});
+				}
+			}
+
+			if (node.operator !== '+' && node.operator !== '-') {
+				accept('error', `Type '${node.operator}' is not assignable to type 'isTimeAdvanceCase'.`, {
+					node: node,
+					property: 'operator'
+				});
+			} else {
+				return;
+			}
+		}
+
+
+		if (node.left === undefined || node.right === undefined) {
+			return;
+		}
+
+
+		const leftType = this.CheckType(node.left);
+		const rightType = this.CheckType(node.right);
+
+		if (node.operator === "and" || node.operator === "or") {
+			if (isBinaryOrBoolean(node.left) && isBinaryOrBoolean(node.right)) {
+				return;
+			}
+		}
+
+		if (this.CompareLeftRightHasError(leftType, rightType, node, accept)) {
+			return;
+		}
+
+
+		let isNoError = true;
+
+
+		switch (leftType) {
+			case "BooleanExpression":
+				isNoError = node.operator === "==" || node.operator === "!=";
+				break;
+			case "ObjectExpression":
+				isNoError = true;
+				break;
+			case "IntegerExpression":
+				isNoError = node.operator === "==" || node.operator === "!=" || node.operator === "<" || node.operator === "<=" || node.operator === ">" || node.operator === ">=";
+				break;
+			case "StringExpression":
+				isNoError = node.operator === "==" || node.operator === "!=";
+				break;
+			case "unknown":
+				isNoError = true;
+				break;
+		}
+
+		const rootNode = this.GetTopExpression(node);
+		const isAssignment = rootNode.operator === "=";
+
+
+		if (!isNoError && !isAssignment) {
+			accept('error', `Type '${node.operator}' is not assignable to type '${leftType} for comparison'.`, {
+				node: node,
+				property: 'operator'
+			});
 		}
 	}
 	
@@ -284,6 +307,11 @@ export class ReelValidator {
 				property: 'left'
 			}
 		}
+		
+		if(this.isComparisonOperator(node.operator)){
+			return "BooleanExpression"
+		}
+		
 		return leftType;
 	}
 
@@ -313,6 +341,24 @@ export class ReelValidator {
 		}
 		
 		return false;
+	}
+
+	private GetTopExpression(node: BinaryExpression): BinaryExpression {
+		
+		let current = node;
+		while (true){
+			
+			if(isBinaryExpression(current.$container)){
+				current = current.$container;
+			}else{
+				break;
+			}
+		}
+		return current;
+	}
+
+	private isComparisonOperator(operator: "!=" | "*" | "+" | "-" | "/" | "<" | "<=" | "=" | "==" | ">" | ">=" | "and" | "or") {
+		return operator === "!=" || operator === "==" || operator === "<" || operator === "<=" || operator === ">" || operator === ">=";
 	}
 }
 

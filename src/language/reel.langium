@@ -25,22 +25,42 @@ AtomicModel:
         ('section' 'internalTransition' '{'
             (internalTransitionCases+=InternalTransitionCase)*
         '}')
+        ('section' 'externalTransition' '{'
+            (receiveCase+=ReceiveCase)*
+        '}')?
+
+    '}'
 ;
 
-//         string input InPort1;
-//         string output OutPort1;
-Port:
-    valueType=('string'|'int'|'bool') type=PortType  name=ID ';'
-;
 
 PortType returns string:
     'InPort' | 'OutPort'
 ;
 
 
+ReceiveCase:
+    'state''.''name' 'is' stateRef=[StateName]'{'
+        (receive += ReceiveConditionWithOverride)*
+    '}'
+;
+
+ReceiveConditionWithOverride:
+    (condition=ReceiveCondition '=>' overrides=StateDefinitionOverridesWithBecome )
+;
+
+// (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)?)
+
+ReceiveCondition:
+    'receive' (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)) ('with' expression=Expression )?
+;
 
 InternalTransitionCase:
     'condition''('name=ID?')' ':' condition=TimeAdvanceCondition '=>' overrides=StateDefinitionOverridesWithBecome
+;
+
+
+Port:
+    valueType=('string'|'int'|'bool') type=PortType  name=ID ';'
 ;
 
 

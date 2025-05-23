@@ -1,14 +1,15 @@
 ﻿import {
-	BinaryExpression,
+	AtomicModel,
+	BinaryExpression, isAtomicModel,
 	isBinaryExpression,
-	isObjectExpression,
+	isObjectExpression, isReceiveCase, isReceiveCondition,
 	isState,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCase,
 	isTimeAdvanceCondition,
 	OBJECT_OVERRIDE,
-	ObjectExpression,
+	ObjectExpression, ReceiveCase, ReceiveCondition,
 	State,
 	StateDefinitionOverrides,
 	StateDefinitionOverridesWithBecome,
@@ -72,20 +73,12 @@ export class ReelInference{
 
 	static getStateFromVariableReference(variable: VariableReference): State | undefined  {
 		
-		let current:  BinaryExpression | StateDefinitionOverridesWithBecome | TimeAdvanceCase | TimeAdvanceCondition = variable.$container;
+		let current:  BinaryExpression | StateDefinitionOverridesWithBecome | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition = variable.$container;
 
 		while (true){
 			if(isBinaryExpression(current)) {
 				current = current.$container;
-			}
-			if(isTimeAdvanceCase(current)){
-				break;
-			}
-			if(isTimeAdvanceCondition(current)){
-				break;
-			}
-			
-			if(isStateDefinitionOverridesWithBecome(current)){
+			}else{
 				break;
 			}
 		}
@@ -98,9 +91,14 @@ export class ReelInference{
 		}
 		
 		if(isStateDefinitionOverridesWithBecome(current)){
-			return current.$container.$container.stateType.ref;
+			return ReelInference.getAtomicModel(current)?.stateType.ref;
 		}
 		
+		if(isReceiveCondition(current)){
+			return ReelInference.getAtomicModel(current.$container.$container)?.stateType.ref;
+		}
+		
+		console.error("getStateFromVariableReference: No state found for variable reference", variable);		
 		return undefined;
 	}
 
@@ -132,5 +130,25 @@ export class ReelInference{
 			}
 		}
 		return result;
+	}
+	
+	
+	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | ReceiveCondition | ReceiveCase): AtomicModel | undefined {
+
+		if(isReceiveCase(container)) {
+			return container.$container;
+		}
+		
+		if(isReceiveCondition(container)){
+			return container.$container.$container.$container;
+		}
+		
+		if(isStateDefinitionOverridesWithBecome(container)){
+			return isAtomicModel(container.$container.$container) ? container.$container.$container : container.$container.$container.$container;
+		}
+		
+		return undefined;
+		
+		
 	}
 }

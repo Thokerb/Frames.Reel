@@ -4,7 +4,7 @@ import {
 import {
 	isAtomicModel,
 	isExpression,
-	isOBJECT_OVERRIDE, isStateDefinitionOverridesWithBecome, isTimeAdvanceCondition,
+	isOBJECT_OVERRIDE, isReceiveCase, isReceiveCondition, isStateDefinitionOverridesWithBecome, isTimeAdvanceCondition,
 	isVariableOverride, isVariableReference,
 	ObjectExpression,
 	State
@@ -114,13 +114,47 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			}) ?? []));
 		}
 		
-		if(isStateDefinitionOverridesWithBecome(context.container)){
-			const state = context.container;
-			if (state.$container.$container.stateType.ref === undefined) {
+		
+		
+		if(isReceiveCase(context.container)){
+			const state = ReelInference.getAtomicModel(context.container);
+			if (state?.stateType.ref === undefined) {
 				return super.getScope(context);
 			}
+			return this.createScopeForNodes((state.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
+				$type: x.$type,
+				$containerIndex: x.$containerIndex,
+				name: x.name,
+				$containerProperty: x.$containerProperty,
+				$container: x.$container,
+				$containerRef: x.$container,
+				$cstNode: x.$cstNode,
+				$document: x.$document,
+			}) ?? []));
+		}
+		
+		if(isReceiveCondition(context.container)){
+			
+			const state = ReelInference.getAtomicModel(context.container);
+			if (state === undefined) {
+				return super.getScope(context);
+			}
+			return this.createScopeForNodes(state.ports.filter(x => x.type === 'InPort'));
+			
+		}
+		
+		
+		if(isStateDefinitionOverridesWithBecome(context.container)){
 
-			return this.createScopeForNodes((context.container.$container.$container.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
+			const atomicModel = ReelInference.getAtomicModel(context.container);
+
+
+			if (atomicModel?.stateType.ref === undefined) {
+				return super.getScope(context);
+			}
+			
+
+			return this.createScopeForNodes((atomicModel.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
 				$type: x.$type,
 				$containerIndex: x.$containerIndex,
 				name: x.name,

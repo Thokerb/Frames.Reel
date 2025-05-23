@@ -68,25 +68,33 @@ atomic model BlinkingLight {
 
     section externalTransition {
 
-        // when we dont care about the value
-        condition state.name "on" with receivedPort(InPort1):
+
+        condition state.name "on" with InPort1[0] == "explode" and state.engine == "tesla"
         {
-            state.name = "off"
+            state.name = "KABUMM"
         }
 
-        received InPort1 as values
+        condition state.name is on
         {
-            condition state.name "on" with values[0] == "explode" and state.engine == "tesla"
-            {
-                state.name = "KABUMM"
+            receive InPort1 == "explode" with engine.name == "tesla": {
+                state.name becomes KABUMM
+                engine.power = 0
             }
 
-            condition state.name "on" with ShouldExplode(state,values)
-            {
-                state.name = "KABUMM2"
-                state.engine = values[0]
+            receive InPort1 {
+                state.name becomes on
+                engine.power = 0
             }
+
+
         }
+
+        condition state.name "on" with ShouldExplode(state,values)
+        {
+            state.name = "KABUMM2"
+            state.engine = values[0]
+        }
+    
 
     }
 
