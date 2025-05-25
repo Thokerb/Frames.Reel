@@ -8,7 +8,7 @@ import {
 	isVariableReference,
 	OBJECT,
 	OBJECT_OVERRIDE,
-	ObjectExpression,
+	ObjectExpression, OutputCase, OutputMap,
 	type ReelAstType,
 	State,
 	StateDefinitionOverrides,
@@ -31,6 +31,8 @@ export function registerValidationChecks(services: ReelServices) {
 		OBJECT_OVERRIDE: validator.checkUniqueParamsObjectOverride,
 		ObjectExpression: validator.checkUniqueParamsObjectExpression,
 		Expression: validator.binaryExpressionCheck,
+		OutputMap: validator.outputMapCheck,
+		OutputCase: validator.outputCaseCheck
 	};
 	registry.register(checks, validator);
 }
@@ -62,6 +64,60 @@ export class ReelValidator {
 			}
 			reported.add(p.name);
 		});
+	}
+
+	outputCaseCheck(def: OutputCase, accept: ValidationAcceptor): void {
+		const reported = new Set();
+		def.output.forEach(p => {
+			if (p.portRef.ref?.name && reported.has(p.portRef.ref?.name)) {
+				accept('error', `Param ${p.portRef.ref?.name} is non-unique for Def '${p.portRef.ref?.name}'`, {node: p, property: 'portRef'});
+			}
+			if(p.portRef.ref?.name){
+				reported.add(p.portRef.ref?.name);
+			}
+		});
+	}
+
+	outputMapCheck(def: OutputMap, accept: ValidationAcceptor): void {
+		const port = def.portRef.ref;
+		if (port === undefined) {
+			return;
+		}
+		const rightType = this.CheckType(def.expression);
+		if (rightType === 'unknown') {
+			accept('error', `Type '${rightType}' is not assignable to type '${port.$type}'.`, {
+				node: def,
+				property: 'expression'
+			});
+			return;
+		}
+		if(isError(rightType)){
+			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
+				node: rightType.node,
+				property: rightType.property
+			});
+			return;
+		}
+		
+		let isNoError = true;
+		
+		switch (port.valueType){
+			case "bool":
+				isNoError = rightType === 'BooleanExpression';
+				break;
+			case "int":
+				isNoError = rightType === 'IntegerExpression';
+				break;
+			case "string":
+				isNoError = rightType === 'StringExpression';
+				break;
+		}
+		if (!isNoError) {
+			accept('error', `Type '${rightType}' is not assignable to type '${port.valueType}'.`, {
+				node: def,
+				property: 'expression'
+			});
+		}
 	}
 
 	checkUniqueParams(def: State, accept: ValidationAcceptor): void {
@@ -133,9 +189,6 @@ export class ReelValidator {
 			return isBinaryExpression(left) || (isVariableReference(left) && left.property[left.property.length - 1].ref?.$type === 'BooleanExpression');
 		}
 
-		// we always check the top node down
-		
-		
 		if (isVariableReference(node)) {
 			return;
 		}

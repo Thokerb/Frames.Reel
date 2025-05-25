@@ -2,14 +2,14 @@
 	AtomicModel,
 	BinaryExpression, isAtomicModel,
 	isBinaryExpression,
-	isObjectExpression, isReceiveCase, isReceiveCondition,
+	isObjectExpression, isOutputCase, isOutputMap, isReceiveCase, isReceiveCondition,
 	isState,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCase,
 	isTimeAdvanceCondition,
 	OBJECT_OVERRIDE,
-	ObjectExpression, ReceiveCase, ReceiveCondition,
+	ObjectExpression, OutputCase, OutputMap, ReceiveCase, ReceiveCondition,
 	State,
 	StateDefinitionOverrides,
 	StateDefinitionOverridesWithBecome,
@@ -73,7 +73,7 @@ export class ReelInference{
 
 	static getStateFromVariableReference(variable: VariableReference): State | undefined  {
 		
-		let current:  BinaryExpression | StateDefinitionOverridesWithBecome | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition = variable.$container;
+		let current:  BinaryExpression | StateDefinitionOverridesWithBecome | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition | OutputMap= variable.$container;
 
 		while (true){
 			if(isBinaryExpression(current)) {
@@ -133,7 +133,7 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | ReceiveCondition | ReceiveCase): AtomicModel | undefined {
+	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | ReceiveCondition | ReceiveCase | OutputMap | OutputCase): AtomicModel | undefined {
 
 		if(isReceiveCase(container)) {
 			return container.$container;
@@ -145,6 +145,14 @@ export class ReelInference{
 		
 		if(isStateDefinitionOverridesWithBecome(container)){
 			return isAtomicModel(container.$container.$container) ? container.$container.$container : container.$container.$container.$container;
+		}
+		
+		if(isOutputMap(container)){
+			return container.$container.$container;
+		}
+		
+		if(isOutputCase(container)){
+			return container.$container;
 		}
 		
 		return undefined;

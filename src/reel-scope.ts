@@ -4,8 +4,14 @@ import {
 import {
 	isAtomicModel,
 	isExpression,
-	isOBJECT_OVERRIDE, isReceiveCase, isReceiveCondition, isStateDefinitionOverridesWithBecome, isTimeAdvanceCondition,
-	isVariableOverride, isVariableReference,
+	isOBJECT_OVERRIDE, 
+	isOutputMap,
+	isReceiveCase,
+	isReceiveCondition,
+	isStateDefinitionOverridesWithBecome,
+	isTimeAdvanceCondition,
+	isVariableOverride,
+	isVariableReference,
 	ObjectExpression,
 	State
 } from './language/generated/ast.js';
@@ -139,9 +145,46 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			if (state === undefined) {
 				return super.getScope(context);
 			}
-			return this.createScopeForNodes(state.ports.filter(x => x.type === 'InPort'));
+			return this.createScopeForNodes(state.ports.filter(x => x.type === 'InPort').map(x => {
+				
+				return {
+					...x,
+					$type: x.valueType
+				} as AstNode;
+					
+			}));
 			
 		}
+		
+		if(isOutputMap(context.container)){
+			const state = ReelInference.getAtomicModel(context.container.$container);
+			if (state === undefined) {
+				return super.getScope(context);
+			}
+			return this.createScopeForNodes(state.ports.filter(x => x.type === 'OutPort').map(x => {
+
+				return {
+					...x,
+					$type: x.valueType
+				} as AstNode;
+
+			}));		
+		}
+		
+		// if(isOutputCase(context.container)){
+		// 	const state = ReelInference.getAtomicModel(context.container);
+		// 	if (state === undefined) {
+		// 		return super.getScope(context);
+		// 	}
+		// 	return this.createScopeForNodes(state.ports.filter(x => x.type === 'OutPort').map(x => {
+		//
+		// 		return {
+		// 			...x,
+		// 			$type: x.valueType
+		// 		} as AstNode;
+		//
+		// 	}));
+		// }
 		
 		
 		if(isStateDefinitionOverridesWithBecome(context.container)){

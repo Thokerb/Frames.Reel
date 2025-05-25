@@ -5,7 +5,9 @@ entry Model:
 ;
 
 Element:
-    AtomicModelWithState
+    AtomicModelWithState |
+    AtomicModel |
+    State
 ;
 
 AtomicModelWithState:
@@ -28,7 +30,9 @@ AtomicModel:
         ('section' 'externalTransition' '{'
             (receiveCase+=ReceiveCase)*
         '}')?
-
+        ('section' 'Output' '{'
+            (outputCases+=OutputCase)*
+        '}')
     '}'
 ;
 
@@ -55,7 +59,7 @@ ReceiveCondition:
 ;
 
 InternalTransitionCase:
-    'condition''('name=ID?')' ':' condition=TimeAdvanceCondition '=>' overrides=StateDefinitionOverridesWithBecome
+    'condition''('(name=ID)?')' ':' condition=TimeAdvanceCondition '=>' overrides=StateDefinitionOverridesWithBecome
 ;
 
 
@@ -63,6 +67,17 @@ Port:
     valueType=('string'|'int'|'bool') type=PortType  name=ID ';'
 ;
 
+
+
+OutputCase:
+    condition=TimeAdvanceCondition '=>' '{'
+        (output += OutputMap)*
+    '}'
+;
+
+OutputMap:
+    portRef=[Port:ID] ':' expression=Expression ';'
+;
 
 /**
  *     section timeAdvance {

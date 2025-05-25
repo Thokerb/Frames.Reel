@@ -109,7 +109,20 @@ atomic model BlinkingLight {
         return state.count == 8;
     }
 
+ 
+    section output {
 
+        condition state.name is on 
+        {
+            OutPort1: "bla"   
+        }
+
+        condition state.name is off with engine.name == "tesla"
+        {
+            OutPort1: "KABUMM"
+        }
+
+    }
 
 
 }
