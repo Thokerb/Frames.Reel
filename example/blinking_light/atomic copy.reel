@@ -1,0 +1,80 @@
+// this is how I would expect an atomic definition to look like
+
+
+state BlinkingLightState {
+    name: ["on","off","KABUMM"]
+    bool isOn = false;
+    int count = 0;
+    object engine = {
+        int power = 500
+        string name = "tesla"
+        object owner = {
+            string name = "JOHN DOE"
+            int age = 18  
+        }
+    }
+}
+
+
+atomic model BlinkingLight {
+    state: BlinkingLightState {
+        count = 5
+        engine.power = 600
+        engine.owner = {
+            name = "mrbeast"
+        }
+    }
+
+    section Ports{
+        string input InPort1;
+        int input InPort2;
+        string output OutPort1;
+    }
+
+    
+
+    state on
+        time-advance: 2 TU
+        becomes: "off"
+        condition: engine.name == "tesla"
+        outputOnTransition:{
+            OutPort1: count
+        }
+        stateModifications: {
+            count = count + 1
+        }
+        receive: {
+            on InPort1 == "bla" and InPort2 == 1 with engine.name == "tesla":{
+
+                state.name becomes: kabumm
+            }
+        }
+    
+    state on:{
+        time-advance: 2 TU
+        // this is a 1 .. n relation
+        transitions: {
+            (transitionName1) =>  {
+                state.name becomes off
+            },
+            (transitionName1) with engine.name == "tesla" => {
+                state.name becomes tesla
+                count = count + 1
+            },
+            () with InPort1 and engine.name => {
+                state.name becomes "on"
+            },
+            () => {
+
+            }
+        }
+        output:{
+                OutPort1: bla
+        }
+        receive: {
+            on InPort1 and InPort2 with engine.name == "tesla":{
+                state.name becomes: kabumm
+            }
+        }
+    }
+}

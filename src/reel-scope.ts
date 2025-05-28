@@ -2,12 +2,12 @@ import {
 	ReferenceInfo, DefaultScopeProvider, Scope, AstNode,
 } from 'langium';
 import {
-	isAtomicModel,
+	isAtomicModel, isAtomicShortModel,
 	isExpression,
-	isOBJECT_OVERRIDE, 
+	isOBJECT_OVERRIDE,
 	isOutputMap,
 	isReceiveCase,
-	isReceiveCondition,
+	isReceiveCondition, isStateConfiguration,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCondition,
 	isVariableOverride,
@@ -40,6 +40,18 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				
 				return this.scopeState(stateType.ref);
 			}
+			
+			if (isAtomicShortModel(memberCall.$container.$container)) {
+				const stateType = memberCall.$container.$container.stateType;
+				if (stateType.ref === undefined) {
+					return super.getScope(context);
+				}
+				
+				return this.scopeState(stateType.ref);
+			}
+			
+			
+			
 			if (isOBJECT_OVERRIDE(memberCall.$container)) {
 				const {state, path} = ReelInference.getStateFromObjectOverride(memberCall.$container);
 
@@ -210,6 +222,27 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		}
 		
 
+		if(isStateConfiguration(context.container)){
+			const atomicModel = ReelInference.getAtomicModel(context.container);
+
+
+			if (atomicModel?.stateType.ref === undefined) {
+				return super.getScope(context);
+			}
+
+
+			return this.createScopeForNodes((atomicModel.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
+				$type: x.$type,
+				$containerIndex: x.$containerIndex,
+				name: x.name,
+				$containerProperty: x.$containerProperty,
+				$container: x.$container,
+				$containerRef: x.$container,
+				$cstNode: x.$cstNode,
+				$document: x.$document,
+			}) ?? []));
+		}
+		
 		console.log(context.container.$type)
 
 		return super.getScope(context);

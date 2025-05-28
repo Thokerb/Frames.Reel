@@ -1,20 +1,19 @@
 ﻿import {
-	AtomicModel,
-	BinaryExpression, isAtomicModel,
+	AtomicModel, AtomicShortModel,
+	isAtomicModel,
 	isBinaryExpression,
-	isObjectExpression, isOutputCase, isOutputMap, isReceiveCase, isReceiveCondition,
-	isState,
+	isObjectExpression, isOutputCase, isOutputMap, isReceiveCase, isReceiveCondition, isReceiveCondition2,
+	isState, isStateConfiguration,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCase,
 	isTimeAdvanceCondition,
 	OBJECT_OVERRIDE,
-	ObjectExpression, OutputCase, OutputMap, ReceiveCase, ReceiveCondition,
+	ObjectExpression, OutputCase, OutputMap, ReceiveCase, ReceiveCondition, ReceiveCondition2,
 	State,
+	StateConfiguration,
 	StateDefinitionOverrides,
 	StateDefinitionOverridesWithBecome,
-	TimeAdvanceCase,
-	TimeAdvanceCondition,
 	Variable,
 	VariableReference
 } from "./language/generated/ast.js";
@@ -73,7 +72,7 @@ export class ReelInference{
 
 	static getStateFromVariableReference(variable: VariableReference): State | undefined  {
 		
-		let current:  BinaryExpression | StateDefinitionOverridesWithBecome | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition | OutputMap= variable.$container;
+		let current  = variable.$container;
 
 		while (true){
 			if(isBinaryExpression(current)) {
@@ -90,16 +89,12 @@ export class ReelInference{
 			return current.$container.$container.stateType.ref;
 		}
 		
-		if(isStateDefinitionOverridesWithBecome(current)){
-			return ReelInference.getAtomicModel(current)?.stateType.ref;
-		}
 		
 		if(isReceiveCondition(current)){
 			return ReelInference.getAtomicModel(current.$container.$container)?.stateType.ref;
 		}
 		
-		console.error("getStateFromVariableReference: No state found for variable reference", variable);		
-		return undefined;
+		return ReelInference.getAtomicModel(current)?.stateType.ref;
 	}
 
 	static getAllVariables(state: State): Array<Variable> {
@@ -133,7 +128,7 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | ReceiveCondition | ReceiveCase | OutputMap | OutputCase): AtomicModel | undefined {
+	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | ReceiveCondition | ReceiveCase | OutputMap | OutputCase | ReceiveCondition2 | StateConfiguration): AtomicModel | AtomicShortModel | undefined {
 
 		if(isReceiveCase(container)) {
 			return container.$container;
@@ -152,6 +147,14 @@ export class ReelInference{
 		}
 		
 		if(isOutputCase(container)){
+			return container.$container;
+		}
+		
+		if(isReceiveCondition2(container)){
+			return container.$container.$container.$container;
+		}
+		
+		if(isStateConfiguration(container)){
 			return container.$container;
 		}
 		

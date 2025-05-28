@@ -5,15 +5,35 @@ entry Model:
 ;
 
 Element:
-    AtomicModelWithState |
     AtomicModel |
+    AtomicShortModel |
     State
 ;
 
-AtomicModelWithState:
-    rootState=State?
-    rootModel=AtomicModel?
+
+AtomicShortModel:
+    'atomic2' 'model' name=ID '{'  
+         ('state' ':' stateType=[State]  definitionOverrides=StateDefinitionOverrides? )
+         ('section' 'Ports' '{' 
+            (ports+=Port)*
+        '}')?
+        (stateConfiguration+=StateConfiguration)*
+    '}'
 ;
+
+StateConfiguration:
+    'stateDefinition' stateRef=[StateName]':' '{'
+        ('time-advance' ':' timeAdvance=Expression 'TimeUnits')
+        ('transitions'':''{'
+            (transitions+=ReceiveConditionWithOverride2)*
+            '}'
+            )
+        ('output' ':' '{'
+            (output += OutputMap)*
+        '}')
+    '}'
+;
+         
 
 AtomicModel:
     'atomic' 'model' name=ID '{'  
@@ -52,10 +72,25 @@ ReceiveConditionWithOverride:
     (condition=ReceiveCondition '=>' overrides=StateDefinitionOverridesWithBecome )
 ;
 
+
+ReceiveConditionWithOverride2:
+    (condition=ReceiveCondition2 '=>' overrides=StateDefinitionOverridesWithBecome )
+;
+
+
 // (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)?)
 
 ReceiveCondition:
     'receive' (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)) ('with' expression=Expression )?
+;
+
+ReceiveCondition2:
+    '('name=ID')'(OptionalReceiveCondition)? ('with' expression=Expression )?
+;
+
+
+OptionalReceiveCondition:
+    'receive' (( portRef+=PortComparison (',' portRef+=PortComparison)*))? ('with' expression=Expression )?
 ;
 
 InternalTransitionCase:
@@ -222,6 +257,9 @@ Logical infers Expression:
 Comparison infers Expression:
     Primary ({infer BinaryExpression.left=current} operator=('<' | '<=' | '>' | '>=' | '==' | '!=') right=Primary)*;
 
+PortComparison infers Expression:
+    PortReference ({infer BinaryExpression.left=current} operator=('<' | '<=' | '>' | '>=' | '==' | '!=') right=Primary)*;
+
 
 
 Primary infers Expression:
@@ -231,6 +269,10 @@ Primary infers Expression:
     INT |
     'Infinity' |
     VariableReference
+;
+
+PortReference:
+    property=[Port:ID]
 ;
 
 

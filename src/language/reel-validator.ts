@@ -13,7 +13,8 @@ import {
 	State,
 	StateDefinitionOverrides,
 	type Variable,
-	type VariableOverride
+	type VariableOverride,
+	PortReference, isPortReference
 } from './generated/ast.js';
 import type {ReelServices} from './reel-module.js';
 
@@ -184,9 +185,13 @@ export class ReelValidator {
 		return node.ref?.$type ?? 'unknown';
 	}
 
-	binaryExpressionCheck(node: Expression, accept: ValidationAcceptor) {
+	binaryExpressionCheck(node: Expression | PortReference, accept: ValidationAcceptor) {
 		function isBinaryOrBoolean(left: Expression) {
 			return isBinaryExpression(left) || (isVariableReference(left) && left.property[left.property.length - 1].ref?.$type === 'BooleanExpression');
+		}
+		
+		if(isPortReference(node)) {
+			return;
 		}
 
 		if (isVariableReference(node)) {
@@ -304,7 +309,19 @@ export class ReelValidator {
 	}
 	
 	
-	private CheckType(node: Expression): "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error {
+	private CheckType(node: Expression | PortReference): "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error {
+		
+		if(isPortReference(node)) {
+			switch (node.property.ref?.valueType){
+				case "bool":
+					return  'BooleanExpression';
+				case "int":
+					return  'IntegerExpression';
+					
+				case "string":
+					return  'StringExpression';
+			}
+		}
 		
 		if (isVariableReference(node)){
 			// get last element of the path
