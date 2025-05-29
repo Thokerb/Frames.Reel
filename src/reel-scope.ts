@@ -289,6 +289,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			}));
 		}
 
+
 		return this.createScopeForNodes(allMembers);
 	}
 

@@ -85,13 +85,9 @@ ReceiveCondition:
 ;
 
 ReceiveCondition2:
-    '('name=ID')'(OptionalReceiveCondition)? ('with' expression=Expression )?
+    '('name=ID')' ('with' expression=Expression )?
 ;
 
-
-OptionalReceiveCondition:
-    'receive' (( portRef+=PortComparison (',' portRef+=PortComparison)*))? ('with' expression=Expression )?
-;
 
 InternalTransitionCase:
     'condition''('(name=ID)?')' ':' condition=TimeAdvanceCondition '=>' overrides=StateDefinitionOverridesWithBecome
@@ -257,10 +253,6 @@ Logical infers Expression:
 Comparison infers Expression:
     Primary ({infer BinaryExpression.left=current} operator=('<' | '<=' | '>' | '>=' | '==' | '!=') right=Primary)*;
 
-PortComparison infers Expression:
-    PortReference ({infer BinaryExpression.left=current} operator=('<' | '<=' | '>' | '>=' | '==' | '!=') right=Primary)*;
-
-
 
 Primary infers Expression:
     '(' Expression ')' |
@@ -268,11 +260,12 @@ Primary infers Expression:
     BooleanValue |
     INT |
     'Infinity' |
-    VariableReference
+    VariableReference |
+    PortReference
 ;
 
 PortReference:
-    property=[Port:ID]
+    ('InPort' property=[Port:ID])
 ;
 
 
