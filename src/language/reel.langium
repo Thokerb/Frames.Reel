@@ -23,7 +23,7 @@ AtomicShortModel:
 
 StateConfiguration:
     'stateDefinition' stateRef=[StateName]':' '{'
-        ('time-advance' ':' timeAdvance=Expression 'TimeUnits')
+        (TimeAdvanceStateConfiguration)
         ('transitions'':''{'
             (transitions+=ReceiveConditionWithOverride2)*
             '}'
@@ -33,7 +33,10 @@ StateConfiguration:
         '}')
     '}'
 ;
-         
+ 
+TimeAdvanceStateConfiguration:
+    'time-advance' ':' timeAdvance=Expression 'TimeUnits'
+;
 
 AtomicModel:
     'atomic' 'model' name=ID '{'  

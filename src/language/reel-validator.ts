@@ -1,22 +1,24 @@
-import type {Reference, ValidationAcceptor, ValidationChecks} from 'langium';
+import type {ValidationAcceptor, ValidationChecks} from 'langium';
 import {
-	BinaryExpression,
 	Expression,
 	isBinaryExpression,
-	isStateDefinitionOverridesWithBecome,
-	isTimeAdvanceCase,
 	isVariableReference,
 	OBJECT,
 	OBJECT_OVERRIDE,
-	ObjectExpression, OutputCase, OutputMap,
+	ObjectExpression,
+	OutputCase,
+	OutputMap,
 	type ReelAstType,
 	State,
 	StateDefinitionOverrides,
-	type Variable,
 	type VariableOverride,
-	PortReference, isPortReference
+	PortReference,
+	isPortReference,
+	TimeAdvanceStateConfiguration,
+	ReceiveCondition2
 } from './generated/ast.js';
 import type {ReelServices} from './reel-module.js';
+import {ReelExpressionChecker} from "../reel-expression-checker.js";
 
 /**
  * Register custom validation checks.
@@ -33,7 +35,9 @@ export function registerValidationChecks(services: ReelServices) {
 		ObjectExpression: validator.checkUniqueParamsObjectExpression,
 		Expression: validator.binaryExpressionCheck,
 		OutputMap: validator.outputMapCheck,
-		OutputCase: validator.outputCaseCheck
+		OutputCase: validator.outputCaseCheck,
+		TimeAdvanceStateConfiguration: validator.timeAdvanceCaseCheck,
+		ReceiveCondition2: validator.receiveCondition2Check,
 	};
 	registry.register(checks, validator);
 }
@@ -56,7 +60,7 @@ export class ReelValidator {
 			reported.add(p.ref.ref?.name);
 		});
 	}
-	
+
 	checkUniqueParamsObjectExpression(def: ObjectExpression, accept: ValidationAcceptor): void {
 		const reported = new Set();
 		def.value.properties.forEach(p => {
@@ -71,9 +75,12 @@ export class ReelValidator {
 		const reported = new Set();
 		def.output.forEach(p => {
 			if (p.portRef.ref?.name && reported.has(p.portRef.ref?.name)) {
-				accept('error', `Param ${p.portRef.ref?.name} is non-unique for Def '${p.portRef.ref?.name}'`, {node: p, property: 'portRef'});
+				accept('error', `Param ${p.portRef.ref?.name} is non-unique for Def '${p.portRef.ref?.name}'`, {
+					node: p,
+					property: 'portRef'
+				});
 			}
-			if(p.portRef.ref?.name){
+			if (p.portRef.ref?.name) {
 				reported.add(p.portRef.ref?.name);
 			}
 		});
@@ -84,7 +91,7 @@ export class ReelValidator {
 		if (port === undefined) {
 			return;
 		}
-		const rightType = this.CheckType(def.expression);
+		const rightType = ReelExpressionChecker.CheckType(def.expression);
 		if (rightType === 'unknown') {
 			accept('error', `Type '${rightType}' is not assignable to type '${port.$type}'.`, {
 				node: def,
@@ -92,17 +99,17 @@ export class ReelValidator {
 			});
 			return;
 		}
-		if(isError(rightType)){
+		if (ReelExpressionChecker.isError(rightType)) {
 			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
 				node: rightType.node,
 				property: rightType.property
 			});
 			return;
 		}
-		
+
 		let isNoError = true;
-		
-		switch (port.valueType){
+
+		switch (port.valueType) {
 			case "bool":
 				isNoError = rightType === 'BooleanExpression';
 				break;
@@ -146,9 +153,9 @@ export class ReelValidator {
 
 	checkVariableDeclaration(decl: VariableOverride, accept: ValidationAcceptor): void {
 		if (decl.ref !== undefined && decl.value !== undefined) {
-			const left = this.inferType(decl.ref);
+			const left = ReelExpressionChecker.inferType(decl.ref);
 			const right = this.inferRightType(decl.value);
-			
+
 			if (right === 'unknown' || left === 'unknown') {
 				accept('error', `Type '${right}' is not assignable to type '${left}'.`, {
 					node: decl,
@@ -167,7 +174,7 @@ export class ReelValidator {
 		}
 	}
 
-	inferRightType(node: string | number | boolean | OBJECT_OVERRIDE | OBJECT ): string {
+	inferRightType(node: string | number | boolean | OBJECT_OVERRIDE | OBJECT): string {
 		if (typeof node === 'string') {
 			return 'StringExpression';
 		} else if (typeof node === 'number') {
@@ -181,262 +188,254 @@ export class ReelValidator {
 
 	}
 
-	inferType(node: Reference<Variable>):  "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" {
-		return node.ref?.$type ?? 'unknown';
-	}
-
+	// we only check that it is a valid binary expression
 	binaryExpressionCheck(node: Expression | PortReference, accept: ValidationAcceptor) {
-		function isBinaryOrBoolean(left: Expression) {
-			return isBinaryExpression(left) || (isVariableReference(left) && left.property[left.property.length - 1].ref?.$type === 'BooleanExpression');
-		}
-		
-		if(isPortReference(node)) {
+
+		if (isPortReference(node)) {
 			return;
 		}
 
 		if (isVariableReference(node)) {
 			return;
 		}
-
-		if (isStateDefinitionOverridesWithBecome(node.$container)) {
-
-			const topExpression = this.GetTopExpression(node);
+		
+		const topExpression = ReelExpressionChecker.GetTopExpression(node);
+		const isAssignment = topExpression.operator === '=';
+		if(isAssignment){
 			
-			// operator must be = 
-			if (node.operator === undefined) {
-				accept('error', `Required value 'operator' is missing.`, {
+			if(!isVariableReference(node.left)){
+				accept('error', `Left side of assignment must be a VariableReference.`, {
 					node: node,
-					property: 'operator'
+					property: 'left'
 				});
-			}
-			if (topExpression.operator !== '=') {
-				accept('error', `Type '${node.operator}' is not assignable to type 'StateDefinitionOverridesWithBecome'.`, {
-					node: node,
-					property: 'operator'
-				});
-			}
-
-			const leftType = this.CheckType(node.left);
-			const rightType = this.CheckType(node.right);
-
-			if (this.CompareLeftRightHasError(leftType, rightType, node, accept)) {
 				return;
 			}
-
-			return;
-
-		}
-
-
-		if (isTimeAdvanceCase(node.$container)) {
-
-			if (node.$cstNode?.text === 'Infinity') {
-				return;
-			}
-
-			if (node.operator === undefined && node?.$cstNode?.text !== undefined) {
-				return;
-			} else {
-				if (node.operator === undefined) {
-					accept('error', `Required value 'TimeValue' is missing.`, {
-						node: node,
-						property: 'operator'
-					});
-				}
-			}
-
-			if (node.operator !== '+' && node.operator !== '-') {
-				accept('error', `Type '${node.operator}' is not assignable to type 'isTimeAdvanceCase'.`, {
-					node: node,
-					property: 'operator'
-				});
-			} else {
-				return;
-			}
-		}
-
-
-		if (node.left === undefined || node.right === undefined) {
-			return;
-		}
-
-
-		const leftType = this.CheckType(node.left);
-		const rightType = this.CheckType(node.right);
-
-		if (node.operator === "and" || node.operator === "or") {
-			if (isBinaryOrBoolean(node.left) && isBinaryOrBoolean(node.right)) {
-				return;
-			}
-		}
-
-		if (this.CompareLeftRightHasError(leftType, rightType, node, accept)) {
-			return;
-		}
-
-
-		let isNoError = true;
-
-
-		switch (leftType) {
-			case "BooleanExpression":
-				isNoError = node.operator === "==" || node.operator === "!=";
-				break;
-			case "ObjectExpression":
-				isNoError = true;
-				break;
-			case "IntegerExpression":
-				isNoError = node.operator === "==" || node.operator === "!=" || node.operator === "<" || node.operator === "<=" || node.operator === ">" || node.operator === ">=";
-				break;
-			case "StringExpression":
-				isNoError = node.operator === "==" || node.operator === "!=";
-				break;
-			case "unknown":
-				isNoError = true;
-				break;
-		}
-
-		const rootNode = this.GetTopExpression(node);
-		const isAssignment = rootNode.operator === "=";
-
-
-		if (!isNoError && !isAssignment) {
-			accept('error', `Type '${node.operator}' is not assignable to type '${leftType} for comparison'.`, {
-				node: node,
-				property: 'operator'
-			});
-		}
-	}
-	
-	
-	private CheckType(node: Expression | PortReference): "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error {
-		
-		if(isPortReference(node)) {
-			switch (node.property.ref?.valueType){
-				case "bool":
-					return  'BooleanExpression';
-				case "int":
-					return  'IntegerExpression';
-					
-				case "string":
-					return  'StringExpression';
-			}
-		}
-		
-		if (isVariableReference(node)){
-			// get last element of the path
-			return this.inferType(node.property[node.property.length - 1])
-		}
-		if(isBinaryExpression(node))
-		{
-			return this.checkBinary(node)
-		}
-		
-		// in this case node is a literal
-		// force get node.cstNode.text
-		const text = (node as any).$cstNode.text;
-		
-		if (text === undefined) {
-			return <Error>{
-				error: `Type '${node}' is not correct`,
-				node: node,
-				property: 'left'
-			}
-		}
-		
-		// check if text is a number
-		if (!isNaN(text)) {
-			return 'IntegerExpression';
-		}
-		// check if text is a boolean
-		if (text === 'true' || text === 'false') {
-			return 'BooleanExpression';
-		}
-		// check if text is a string
-		return "StringExpression";
-	}
-	
-	private checkBinary(node: BinaryExpression): Error | "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" {
-
-		const leftType = this.CheckType(node.left);
-		
-		if (isError(leftType)) {
-			return leftType;
-		}
-		
-		const rightType = this.CheckType(node.right);
-		
-		if (isError(rightType)) {
-			return rightType;
-		}
-		
-		if (leftType !== rightType) {
-			return <Error>{
-				error: `Type '${leftType}' is not compatible to type '${rightType}'.`,
-				node: node,
-				property: 'left'
-			}
-		}
-		
-		if(this.isComparisonOperator(node.operator)){
-			return "BooleanExpression"
-		}
-		
-		return leftType;
-	}
-
-
-	private CompareLeftRightHasError(leftType: "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error, rightType: "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error,node:BinaryExpression, accept: ValidationAcceptor): boolean {
-		if(isError(leftType)) {
-			accept('error', `Type '${leftType.node} is not correct'.`, {
-				node: leftType.node,
-				property: leftType.property
-			});
-			return true;
-		}
-		if(isError(rightType)) {
-			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
-				node: rightType.node,
-				property: rightType.property
-			});
-			return true;
-		}
-
-		if (leftType !== rightType) {
-			accept('error', `Type '${leftType}' is not compatible to type '${rightType}'.`, {
-				node: node,
-				property: 'left'
-			});
-			return true;
-		}
-		
-		return false;
-	}
-
-	private GetTopExpression(node: BinaryExpression): BinaryExpression {
-		
-		let current = node;
-		while (true){
 			
-			if(isBinaryExpression(current.$container)){
-				current = current.$container;
-			}else{
-				break;
+			if(isPortReference(node.right)){
+				accept('error', `PortReference is not allowed on the right side of an assignment.`, {
+					node: node,
+					property: 'right'
+				});
+				return;
+			}
+			
+			const rightType = ReelExpressionChecker.CheckType(node.right);
+			const leftType = ReelExpressionChecker.CheckType(topExpression.left);
+			if (ReelExpressionChecker.isError(rightType)) {
+				accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
+					node: rightType.node,
+					property: rightType.property
+				});
+				return;
+			}
+			if(leftType !== rightType) {
+				accept('error', `Type '${rightType}' is not assignable to type '${leftType}'.`, {
+					node: node,
+					property: 'right'
+				});
+				return;
 			}
 		}
-		return current;
+		
+		
+		//
+		// if (isStateDefinitionOverridesWithBecome(node.$container)) {
+		//
+		// 	const topExpression = ReelExpressionChecker.GetTopExpression(node);
+		//
+		// 	// operator must be = 
+		// 	if (node.operator === undefined) {
+		// 		accept('error', `Required value 'operator' is missing.`, {
+		// 			node: node,
+		// 			property: 'operator'
+		// 		});
+		// 	}
+		// 	if (topExpression.operator !== '=') {
+		// 		accept('error', `Type '${node.operator}' is not assignable to type 'StateDefinitionOverridesWithBecome'.`, {
+		// 			node: node,
+		// 			property: 'operator'
+		// 		});
+		// 	}
+		//
+		// 	const leftType = ReelExpressionChecker.CheckType(node.left);
+		// 	const rightType = ReelExpressionChecker.CheckType(node.right);
+		//
+		// 	if (ReelExpressionChecker.CompareLeftRightHasError(leftType, rightType, node, accept)) {
+		// 		return;
+		// 	}
+		//
+		// 	return;
+		//
+		// }
+		//
+		//
+		// if (isTimeAdvanceCase(node.$container)) {
+		//
+		// 	if (node.$cstNode?.text === 'Infinity') {
+		// 		return;
+		// 	}
+		//
+		// 	if (node.operator === undefined && node?.$cstNode?.text !== undefined) {
+		// 		return;
+		// 	} else {
+		// 		if (node.operator === undefined) {
+		// 			accept('error', `Required value 'TimeValue' is missing.`, {
+		// 				node: node,
+		// 				property: 'operator'
+		// 			});
+		// 		}
+		// 	}
+		//
+		// 	if (node.operator !== '+' && node.operator !== '-') {
+		// 		accept('error', `Type '${node.operator}' is not assignable to type 'isTimeAdvanceCase'.`, {
+		// 			node: node,
+		// 			property: 'operator'
+		// 		});
+		// 	} else {
+		// 		return;
+		// 	}
+		// }
+		//
+		// if(isTimeAdvanceStateConfiguration(node.$container)) {
+		// 	return;
+		// }
+		//
+		//
+		//
+		// if (node.left === undefined || node.right === undefined) {
+		// 	return;
+		// }
+		//
+		//
+		// const leftType = ReelExpressionChecker.CheckType(node.left);
+		// const rightType = ReelExpressionChecker.CheckType(node.right);
+		//
+		//
+		// if (ReelExpressionChecker.CompareLeftRightHasError(leftType, rightType, node, accept)) {
+		// 	return;
+		// }
+		//
+		//
+		// let isNoError = true;
+		//
+		//
+		// switch (leftType) {
+		// 	case "BooleanExpression":
+		// 		isNoError = node.operator === "==" || node.operator === "!=";
+		// 		break;
+		// 	case "ObjectExpression":
+		// 		isNoError = true;
+		// 		break;
+		// 	case "IntegerExpression":
+		// 		isNoError = node.operator === "==" || node.operator === "!=" || node.operator === "<" || node.operator === "<=" || node.operator === ">" || node.operator === ">=";
+		// 		break;
+		// 	case "StringExpression":
+		// 		isNoError = node.operator === "==" || node.operator === "!=";
+		// 		break;
+		// 	case "unknown":
+		// 		isNoError = true;
+		// 		break;
+		// }
+		//
+		// const rootNode = ReelExpressionChecker.GetTopExpression(node);
+		// const isAssignment = rootNode.operator === "=";
+		//
+		//
+		// if (!isNoError && !isAssignment) {
+		// 	accept('error', `Type '${node.operator}' is not assignable to type '${leftType} for comparison'.`, {
+		// 		node: node,
+		// 		property: 'operator'
+		// 	});
+		// }
 	}
 
-	private isComparisonOperator(operator: "!=" | "*" | "+" | "-" | "/" | "<" | "<=" | "=" | "==" | ">" | ">=" | "and" | "or") {
-		return operator === "!=" || operator === "==" || operator === "<" || operator === "<=" || operator === ">" || operator === ">=";
+
+	timeAdvanceCaseCheck(conf: TimeAdvanceStateConfiguration, accept: ValidationAcceptor) {
+		if(isPortReference(conf.timeAdvance)){
+			accept('error', `PortReference is not allowed in TimeAdvanceStateConfiguration.`, {
+				node: conf.timeAdvance,
+				property: 'property'
+			});
+			return;
+		}
+		
+		if (conf.timeAdvance === undefined) {
+			accept('error', `Required value 'timeAdvance' is missing.`, {
+				node: conf,
+				property: 'timeAdvance'
+			});
+			return;
+		}
+		
+		if (conf.timeAdvance.$cstNode?.text === 'Infinity') {
+			return;
+		}
+		
+		if(isVariableReference(conf.timeAdvance)){
+			const type = ReelExpressionChecker.CheckType(conf.timeAdvance);
+			if (type !== 'IntegerExpression') {
+				accept('error', `Type '${type}' is not assignable to type 'IntegerExpression'.`, {
+					node: conf.timeAdvance,
+					property: 'property'
+				});
+			}
+			return;
+		}
+		
+		if (isBinaryExpression(conf.timeAdvance)) {
+			const topExpression = ReelExpressionChecker.GetTopExpression(conf.timeAdvance);
+			const type = ReelExpressionChecker.CheckType(topExpression);
+			if (type !== 'IntegerExpression') {
+				accept('error', `Type '${type}' is not assignable to type 'IntegerExpression'.`, {
+					node: conf.timeAdvance,
+					property: 'operator'
+				});
+			}
+		}
+		
+	}
+
+	receiveCondition2Check(condition: ReceiveCondition2, accept: ValidationAcceptor) {
+
+		const expression = condition.expression;
+
+		if(expression === undefined) {
+			return;
+		}
+		
+		if(isPortReference(expression) && expression.property.ref?.type === "OutPort"){
+			accept('error', `OutPort is not valid in transition condition.`, {
+				node: expression,
+				property: 'property'
+			});
+			return;
+		}
+		
+		if(isVariableReference(expression)) {
+			const type = ReelExpressionChecker.CheckType(expression);
+			if (type !== 'BooleanExpression') {
+				accept('error', `Type '${type}' is not assignable to type 'BooleanExpression'.`, {
+					node: expression,
+					property: 'property'
+				});
+			}
+			return;
+		}
+		
+		if (isBinaryExpression(expression)) {
+			const topExpression = ReelExpressionChecker.GetTopExpression(expression);
+			const type = ReelExpressionChecker.CheckType(topExpression, "OutPort");
+			if (type !== 'BooleanExpression') {
+				
+				const errMessage = ReelExpressionChecker.isError(type) ? type.error : `Type '${type}' is not assignable to type 'BooleanExpression'.`;
+				
+				accept('error', errMessage, {
+					node: expression,
+					property: ReelExpressionChecker.isError(type) ? type.which : 'operator'
+				});
+			}
+		}
+		
 	}
 }
 
-function isError(node: any): node is Error {
-	return (node as Error).error !== undefined;
-}
-interface Error {
-	error: string;
-	node: Expression;
-	property: string;
-}
