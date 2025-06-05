@@ -1,5 +1,6 @@
 ﻿import {
 	AtomicModel, AtomicShortModel,
+	BinaryExpression,
 	isAtomicModel,
 	isBinaryExpression,
 	isObjectExpression, isOutputCase, isOutputMap, isReceiveCase, isReceiveCondition, isReceiveCondition2,
@@ -7,16 +8,17 @@
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCase,
-	isTimeAdvanceCondition,
+	isTimeAdvanceCondition, isTimeAdvanceStateConfiguration,
 	OBJECT_OVERRIDE,
 	ObjectExpression, OutputCase, OutputMap, ReceiveCase, ReceiveCondition, ReceiveCondition2,
 	State,
 	StateConfiguration,
 	StateDefinitionOverrides,
-	StateDefinitionOverridesWithBecome,
+	StateDefinitionOverridesWithBecome, TimeAdvanceCase, TimeAdvanceCondition, TimeAdvanceStateConfiguration,
 	Variable,
 	VariableReference
 } from "./language/generated/ast.js";
+import {ReelExpressionChecker} from "./reel-expression-checker.js";
 
 export class ReelInference{
 
@@ -128,16 +130,23 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | ReceiveCondition | ReceiveCase | OutputMap | OutputCase | ReceiveCondition2 | StateConfiguration): AtomicModel | AtomicShortModel | undefined {
+	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | BinaryExpression | ReceiveCondition | ReceiveCase | OutputMap | OutputCase | TimeAdvanceStateConfiguration | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition2 | StateConfiguration): AtomicModel | AtomicShortModel | undefined {
 
 		if(isReceiveCase(container)) {
 			return container.$container;
+		}
+
+		if(isTimeAdvanceStateConfiguration(container)){
+			return container.$container.$container;
 		}
 		
 		if(isReceiveCondition(container)){
 			return container.$container.$container.$container;
 		}
-		
+		if(isOutputCase(container)){
+			return container.$container;
+		}
+
 		if(isStateDefinitionOverridesWithBecome(container)){
 			return isAtomicModel(container.$container.$container) ? container.$container.$container : container.$container.$container.$container;
 		}
@@ -145,17 +154,29 @@ export class ReelInference{
 		if(isOutputMap(container)){
 			return container.$container.$container;
 		}
-		
-		if(isOutputCase(container)){
-			return container.$container;
-		}
-		
+
 		if(isReceiveCondition2(container)){
 			return container.$container.$container.$container;
 		}
 		
 		if(isStateConfiguration(container)){
 			return container.$container;
+		}
+		
+		if(isTimeAdvanceCase(container)){
+			return container.$container;
+		}
+		
+		if(isTimeAdvanceCondition(container)){
+			return container.$container.$container;
+		}
+		
+		if(isBinaryExpression(container)){
+			const topExpression = ReelExpressionChecker.GetTopExpression(container);
+			if(isBinaryExpression(topExpression.$container) ){
+				throw new Error("Top expression is not a state configuration");
+			}
+			return this.getAtomicModel(topExpression.$container);
 		}
 		
 		return undefined;

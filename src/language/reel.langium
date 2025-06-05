@@ -14,16 +14,20 @@ Element:
 AtomicShortModel:
     'atomic2' 'model' name=ID '{'  
          ('state' ':' stateType=[State]  definitionOverrides=StateDefinitionOverrides? )
-         ('section' 'Ports' '{' 
-            (ports+=Port)*
-        '}')?
+         (ports=PortConfiguration)?
         (stateConfiguration+=StateConfiguration)*
     '}'
 ;
 
+PortConfiguration:
+    'section' 'Ports' '{' 
+            (ports+=Port)*
+        '}'
+;
+
 StateConfiguration:
     'stateDefinition' stateRef=[StateName]':' '{'
-        (TimeAdvanceStateConfiguration)
+        (timeAdvance=TimeAdvanceStateConfiguration)
         ('transitions'':''{'
             (transitions+=ReceiveConditionWithOverride2)*
             '}'
@@ -41,9 +45,7 @@ TimeAdvanceStateConfiguration:
 AtomicModel:
     'atomic' 'model' name=ID '{'  
          ('state' ':' stateType=[State]  definitionOverrides=StateDefinitionOverrides? )
-         ('section' 'Ports' '{' 
-            (ports+=Port)*
-        '}')?
+         (ports=PortConfiguration)?
         ('section' 'TimeAdvance' '{' 
             (timeAdvanceCases+=TimeAdvanceCase)*
         '}')?
@@ -80,9 +82,6 @@ ReceiveConditionWithOverride2:
     (condition=ReceiveCondition2 '=>' overrides=StateDefinitionOverridesWithBecome )
 ;
 
-
-// (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)?)
-
 ReceiveCondition:
     'receive' (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)) ('with' expression=Expression )?
 ;
@@ -98,7 +97,7 @@ InternalTransitionCase:
 
 
 Port:
-    valueType=('string'|'int'|'bool') type=PortType  name=ID ';'
+    valueType=('string'|'int'|'bool'|OBJECT) type=PortType  name=ID ';'
 ;
 
 
@@ -112,18 +111,6 @@ OutputCase:
 OutputMap:
     portRef=[Port:ID] ':' expression=Expression ';'
 ;
-
-/**
- *     section timeAdvance {
-        state.name "on" => 5 TU;
-        state.name "off" => 12 TU;
-        state.name "off" with (state.engine == "power") => 1 TU;
-        state.name "on" with Blinked8Times => 3 TU;
-        state.name "KABUMM" => state.count TU;
-        state.name "KABUMM2" => state.count*state.power TU;
-    }
- * 
- */
 
 TimeAdvanceCase:
     (
@@ -184,7 +171,6 @@ State:
     '}'
 ;
 
-// name: ["on","off","KABUMM"]
 StateTypes:
     'states' ':' '['
         (( StateName+=StateName ('|' StateName+=StateName)*)?)
@@ -205,22 +191,21 @@ Variable:
     | BooleanExpression
     | StringExpression
     | ObjectExpression
-)
-;
-
+);
 
 
 
 BooleanExpression:
-    'bool' name=ID '=' value=BooleanValue';'
+    'bool' name=ID ('=' value=BooleanValue)?';'
 ;
 
+
 IntegerExpression:
-    'int' name=ID '=' value=INT';'
+    'int' name=ID ('=' value=INT)?';'
 ;
 
 StringExpression:
-    'string' name=ID '=' value=STRING';'
+    'string' name=ID ('=' value=STRING)?';'
 ;
 
 ObjectExpression:
@@ -268,7 +253,7 @@ Primary infers Expression:
 ;
 
 PortReference:
-    ('InPort' property=[Port:ID])
+    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? )
 ;
 
 

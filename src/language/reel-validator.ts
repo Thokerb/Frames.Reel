@@ -15,7 +15,7 @@ import {
 	PortReference,
 	isPortReference,
 	TimeAdvanceStateConfiguration,
-	ReceiveCondition2
+	ReceiveCondition2, StateDefinitionOverridesWithBecome
 } from './generated/ast.js';
 import type {ReelServices} from './reel-module.js';
 import {ReelExpressionChecker} from "../reel-expression-checker.js";
@@ -38,6 +38,7 @@ export function registerValidationChecks(services: ReelServices) {
 		OutputCase: validator.outputCaseCheck,
 		TimeAdvanceStateConfiguration: validator.timeAdvanceCaseCheck,
 		ReceiveCondition2: validator.receiveCondition2Check,
+		StateDefinitionOverridesWithBecome: validator.stateDefinitionOverridesWithBecomeCheck,
 	};
 	registry.register(checks, validator);
 }
@@ -203,33 +204,33 @@ export class ReelValidator {
 		const isAssignment = topExpression.operator === '=';
 		if(isAssignment){
 			
-			if(!isVariableReference(node.left)){
+			if(!isVariableReference(topExpression.left)){
 				accept('error', `Left side of assignment must be a VariableReference.`, {
-					node: node,
+					node: topExpression.left,
 					property: 'left'
 				});
 				return;
 			}
 			
-			if(isPortReference(node.right)){
-				accept('error', `PortReference is not allowed on the right side of an assignment.`, {
-					node: node,
-					property: 'right'
-				});
-				return;
-			}
+			// if(isPortReference(topExpression.right)){
+			// 	accept('error', `PortReference is not allowed on the right side of an assignment.`, {
+			// 		node: topExpression.right,
+			// 		property: 'property'
+			// 	});
+			// 	return;
+			// }
 			
-			const rightType = ReelExpressionChecker.CheckType(node.right);
+			const rightType = ReelExpressionChecker.CheckType(topExpression.right);
 			const leftType = ReelExpressionChecker.CheckType(topExpression.left);
 			if (ReelExpressionChecker.isError(rightType)) {
-				accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
+				accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}' in assignment.`, {
 					node: rightType.node,
 					property: rightType.property
 				});
 				return;
 			}
 			if(leftType !== rightType) {
-				accept('error', `Type '${rightType}' is not assignable to type '${leftType}'.`, {
+				accept('error', `Type '${rightType}' is not assignable to type '${leftType}' in assignment.`, {
 					node: node,
 					property: 'right'
 				});
@@ -395,6 +396,22 @@ export class ReelValidator {
 		
 	}
 
+
+	stateDefinitionOverridesWithBecomeCheck(condition: StateDefinitionOverridesWithBecome, accept: ValidationAcceptor) {
+		
+		condition.properties?.forEach(prop => {
+			let type = ReelExpressionChecker.CheckType(prop, "OutPort")
+			if(ReelExpressionChecker.isError(type)){
+				accept('error', type.error, {
+					node: type.node,
+					property: 'PortType'
+				});
+			}
+		});
+	
+	}
+											
+
 	receiveCondition2Check(condition: ReceiveCondition2, accept: ValidationAcceptor) {
 
 		const expression = condition.expression;
@@ -402,8 +419,9 @@ export class ReelValidator {
 		if(expression === undefined) {
 			return;
 		}
+			
 		
-		if(isPortReference(expression) && expression.property.ref?.type === "OutPort"){
+		if(isPortReference(expression) && expression.portType === "OutPort"){
 			accept('error', `OutPort is not valid in transition condition.`, {
 				node: expression,
 				property: 'property'

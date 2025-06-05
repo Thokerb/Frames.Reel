@@ -19,7 +19,7 @@ export class ReelExpressionChecker {
 
 		if(isPortReference(node)) {
 			
-			if(illegalPortType && node.property.ref?.type === illegalPortType) {
+			if(illegalPortType && node.property?.ref?.type === illegalPortType) {
 				return <Error>{
 					error: `Port type '${node.property.ref?.type}' is not allowed here.`,
 					node: node,
@@ -28,7 +28,7 @@ export class ReelExpressionChecker {
 				}
 			}
 			
-			switch (node.property.ref?.valueType){
+			switch (node.property?.ref?.valueType){
 				case "bool":
 					return  'BooleanExpression';
 				case "int":
@@ -97,7 +97,7 @@ export class ReelExpressionChecker {
 
 		if (leftType !== rightType) {
 			return <Error>{
-				error: `Type '${leftType}' is not compatible to type '${rightType}'.`,
+				error: `Type '${leftType}' is not compatible to type '${rightType}' 2.`,
 				node: node,
 				property: 'left',
 				which: 'left'
