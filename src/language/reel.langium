@@ -1,18 +1,40 @@
 grammar Reel
 
 entry Model:
-    rootElements+=Element+
+    fileImports+=FileImport   //NEW: imports per file
+    | elements+=Element+
 ;
 
 Element:
-    AtomicModel |
+    // AtomicModel |
     AtomicShortModel |
-    State
+    State |
+    CoupledModel
+;
+
+
+CoupledModel:
+    'coupled' 'model' name=ID '{'  
+
+    '}'
+;
+
+
+
+FileImport: //NEW: imports of the same file are gathered in a list
+    'import' 'model'  
+        (modelImports+=ModelImports ('with' 'state' stateImports+=[State])? (',' modelImports+=ModelImports ('with' 'state' stateImports+=[State])?)* )?
+        (('as' alias=ID)? 'from')? //NEW: optional alias
+    'from' file=STRING
+; 
+
+ModelImports:
+    model=[AtomicShortModel:ID]
 ;
 
 
 AtomicShortModel:
-    'atomic2' 'model' name=ID '{'  
+    published?='export'? 'atomic2' 'model' name=ID '{'  
          ('state' ':' stateType=[State]  definitionOverrides=StateDefinitionOverrides? )
          (ports=PortConfiguration)?
         (stateConfiguration+=StateConfiguration)*

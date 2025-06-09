@@ -1,7 +1,7 @@
 ﻿import {
 	BinaryExpression,
 	Expression,
-	isBinaryExpression,
+	isBinaryExpression, isOBJECT,
 	isPortReference,
 	isVariableReference,
 	PortReference, PortType, type Variable
@@ -36,6 +36,10 @@ export class ReelExpressionChecker {
 
 				case "string":
 					return  'StringExpression';
+			}
+			
+			if(isOBJECT(node.property?.ref?.valueType)){
+				return "ObjectExpression";
 			}
 		}
 
@@ -167,6 +171,48 @@ export class ReelExpressionChecker {
 		return isBinaryExpression(expr) || (isVariableReference(expr) && expr.property[expr.property.length - 1].ref?.$type === 'BooleanExpression');
 	}
 
+	static GetUsedPorts(expression: Expression | undefined): Array<PortReference> | undefined {
+		if (expression === undefined) {
+			return undefined;
+		}
+
+		if (isPortReference(expression)) {
+			return [expression];
+		}
+
+		if (isBinaryExpression(expression)) {
+			const leftPorts = this.GetUsedPorts(expression.left);
+			const rightPorts = this.GetUsedPorts(expression.right);
+			return [...(leftPorts ?? []), ...(rightPorts ?? [])];
+		}
+
+		if (isVariableReference(expression)) {
+			return [];
+		}
+
+		return undefined;
+	}
+
+	static AllowedPortTypes(expression: Expression, ports: Array<PortReference> | undefined, accept: ValidationAcceptor) {
+		if( ports === undefined || ports.length === 0) {
+			return;
+		}
+		
+		if(isPortReference(expression)) {
+			if (!ports.some(port => port.property?.ref?.name === expression.property?.ref?.name)) {
+				accept('error', `Port '${expression.property?.ref?.name}' is not allowed here. Port must be asserted in condition.`, {
+					node: expression,
+					property: 'property'
+				});
+			}
+			return;
+		}
+		if (isBinaryExpression(expression)) {
+			this.AllowedPortTypes(expression.left, ports, accept);
+			this.AllowedPortTypes(expression.right, ports, accept);
+			return;
+		}
+	}
 }
 
 export interface Error {

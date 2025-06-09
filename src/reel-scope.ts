@@ -1,7 +1,8 @@
 import {
-	ReferenceInfo, DefaultScopeProvider, Scope, AstNode,
+	ReferenceInfo, DefaultScopeProvider, Scope, AstNode, AstUtils, UriUtils,
 } from 'langium';
 import {
+	AtomicShortModel,
 	isAtomicModel, isAtomicShortModel,
 	isExpression, isOBJECT,
 	isOBJECT_OVERRIDE,
@@ -11,14 +12,34 @@ import {
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCondition,
 	isVariableOverride,
-	isVariableReference,
-	ObjectExpression, Port, PortType,
+	isVariableReference, Model,
+	ObjectExpression, Port, PortType, ReelAstType,
 	State
 } from './language/generated/ast.js';
 import {ReelInference} from './reel-infer.js';
+import dirname = UriUtils.dirname;
+import path from "node:path";
 
 export class ReelScopeProvider extends DefaultScopeProvider {
 	override getScope(context: ReferenceInfo): Scope {
+
+
+		switch(context.container.$type as keyof ReelAstType) {
+			case 'ModelImports':
+				if(context.property === '') {
+					return this.getExportedModelsFromGlobalScope(context);
+				}
+				break;
+			case 'AtomicShortModel':
+				// if(context.property === 'person') {
+				return this.getImportedModelsFromCurrentFile(context);
+				//}
+				// break;
+			case 'State':
+				return this.getImportedModelsFromCurrentFile(context);
+		}
+		
+		
 		// const container = context.container;
 
 		// target element of member calls
@@ -329,5 +350,63 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				$type: type
 			} as AstNode;
 		}) ?? []);
+	}
+
+
+	private getExportedModelsFromGlobalScope(context: ReferenceInfo): Scope {
+		//get document for current reference
+		const document = AstUtils.getDocument(context.container);
+		//get model of document
+		const model = document.parseResult.value as Model;
+		//get URI of current document
+		const currentUri = document.uri;
+		//get folder of current document
+		const currentDir = dirname(currentUri);
+		const uris = new Set<string>();
+		//for all file imports of the current file
+		for (const fileImport of model.fileImports) {
+			//resolve the file name relatively to the current file
+			const filePath = path.join(currentDir.path, fileImport.file);
+			//create back an URI
+			const uri = currentUri.with({ path: filePath });
+			//add the URI to URI list
+			uris.add(uri.toString());
+		}
+		//get all possible persons from these files
+		const astNodeDescriptions = this.indexManager.allElements(AtomicShortModel, uris).toArray();
+		//convert them to descriptions inside of a scope
+		return this.createScope(astNodeDescriptions);
+	}
+
+	private getImportedModelsFromCurrentFile(context: ReferenceInfo) {
+		//get current document of reference
+		const document = AstUtils.getDocument(context.container);
+		//get current model
+		const model = document.parseResult.value as Model;
+		//go through all imports
+		const descriptions = model.fileImports.flatMap(fi => fi.modelImports.map(pi => {
+			
+			//if import references to a person, return that person
+			if (pi.model.ref) {
+				return this.descriptions.createDescription(pi.model.ref, pi.model.ref.name);
+			}
+			
+			//otherwise return nothing
+			return undefined;
+		}).filter(d => d != undefined)).map(d => d!);
+
+		const des2 = model.fileImports.flatMap(fi => fi.stateImports.map(pi => {
+
+			//if import references to a person, return that person
+			if (pi.ref) {
+				return this.descriptions.createDescription(pi.ref, pi.ref.name);
+			}
+
+			//otherwise return nothing
+			return undefined;
+		}).filter(d => d != undefined)).map(d => d!);
+		
+		
+		return this.createScope([...descriptions, ...des2]);
 	}
 }

@@ -15,7 +15,13 @@ import {
 	PortReference,
 	isPortReference,
 	TimeAdvanceStateConfiguration,
-	ReceiveCondition2, StateDefinitionOverridesWithBecome
+	ReceiveCondition2,
+	StateDefinitionOverridesWithBecome,
+	PortConfiguration,
+	Port,
+	Properties,
+	PropertiesOverride,
+	isReceiveConditionWithOverride2
 } from './generated/ast.js';
 import type {ReelServices} from './reel-module.js';
 import {ReelExpressionChecker} from "../reel-expression-checker.js";
@@ -39,6 +45,7 @@ export function registerValidationChecks(services: ReelServices) {
 		TimeAdvanceStateConfiguration: validator.timeAdvanceCaseCheck,
 		ReceiveCondition2: validator.receiveCondition2Check,
 		StateDefinitionOverridesWithBecome: validator.stateDefinitionOverridesWithBecomeCheck,
+		PortConfiguration: validator.portConfigurationCheck,
 	};
 	registry.register(checks, validator);
 }
@@ -51,7 +58,7 @@ export class ReelValidator {
 
 	checkUniqueParamsObjectOverride(def: OBJECT_OVERRIDE, accept: ValidationAcceptor): void {
 		const reported = new Set();
-		def.properties.forEach(p => {
+		def.properties.forEach((p: VariableOverride) => {
 			if (reported.has(p.ref.ref?.name)) {
 				accept('error', `Param ${p.ref.ref?.name} is non-unique for Def '${p.ref.ref?.name}'`, {
 					node: p,
@@ -62,9 +69,22 @@ export class ReelValidator {
 		});
 	}
 
+	portConfigurationCheck(def: PortConfiguration, accept: ValidationAcceptor): void {
+		const reported = new Set();
+		def.ports.forEach((p: Port) => {
+			if (reported.has(p?.name)) {
+				accept('error', `Param ${p?.name} is non-unique for Def '${p?.name}'`, {
+					node: p,
+					property: 'name'
+				});
+			}
+			reported.add(p?.name);
+		});
+	}
+
 	checkUniqueParamsObjectExpression(def: ObjectExpression, accept: ValidationAcceptor): void {
 		const reported = new Set();
-		def.value.properties.forEach(p => {
+		def.value.properties.forEach((p: Properties) => {
 			if (reported.has(p.name)) {
 				accept('error', `Param ${p.name} is non-unique for Def '${p.name}'`, {node: p, property: 'name'});
 			}
@@ -74,7 +94,7 @@ export class ReelValidator {
 
 	outputCaseCheck(def: OutputCase, accept: ValidationAcceptor): void {
 		const reported = new Set();
-		def.output.forEach(p => {
+		def.output.forEach((p: OutputMap) => {
 			if (p.portRef.ref?.name && reported.has(p.portRef.ref?.name)) {
 				accept('error', `Param ${p.portRef.ref?.name} is non-unique for Def '${p.portRef.ref?.name}'`, {
 					node: p,
@@ -131,7 +151,7 @@ export class ReelValidator {
 
 	checkUniqueParams(def: State, accept: ValidationAcceptor): void {
 		const reported = new Set();
-		def.properties.forEach(p => {
+		def.properties.forEach((p: Properties) => {
 			if (reported.has(p.name)) {
 				accept('error', `Param ${p.name} is non-unique for Def '${def.name}'`, {node: p, property: 'name'});
 			}
@@ -141,7 +161,7 @@ export class ReelValidator {
 
 	checkUniqueParamsStateOverride(def: StateDefinitionOverrides, accept: ValidationAcceptor): void {
 		const reported = new Set();
-		def.properties.forEach(p => {
+		def.properties.forEach((p: PropertiesOverride) => {
 			if (reported.has(p.ref.ref?.name)) {
 				accept('error', `Param ${p.ref.ref?.name} is non-unique for Def '${p.ref.ref?.name}'`, {
 					node: p,
@@ -199,19 +219,19 @@ export class ReelValidator {
 		if (isVariableReference(node)) {
 			return;
 		}
-		
+
 		const topExpression = ReelExpressionChecker.GetTopExpression(node);
 		const isAssignment = topExpression.operator === '=';
-		if(isAssignment){
-			
-			if(!isVariableReference(topExpression.left)){
+		if (isAssignment) {
+
+			if (!isVariableReference(topExpression.left)) {
 				accept('error', `Left side of assignment must be a VariableReference.`, {
 					node: topExpression.left,
 					property: 'left'
 				});
 				return;
 			}
-			
+
 			// if(isPortReference(topExpression.right)){
 			// 	accept('error', `PortReference is not allowed on the right side of an assignment.`, {
 			// 		node: topExpression.right,
@@ -219,7 +239,7 @@ export class ReelValidator {
 			// 	});
 			// 	return;
 			// }
-			
+
 			const rightType = ReelExpressionChecker.CheckType(topExpression.right);
 			const leftType = ReelExpressionChecker.CheckType(topExpression.left);
 			if (ReelExpressionChecker.isError(rightType)) {
@@ -229,7 +249,7 @@ export class ReelValidator {
 				});
 				return;
 			}
-			if(leftType !== rightType) {
+			if (leftType !== rightType) {
 				accept('error', `Type '${rightType}' is not assignable to type '${leftType}' in assignment.`, {
 					node: node,
 					property: 'right'
@@ -237,8 +257,8 @@ export class ReelValidator {
 				return;
 			}
 		}
-		
-		
+
+
 		//
 		// if (isStateDefinitionOverridesWithBecome(node.$container)) {
 		//
@@ -352,14 +372,14 @@ export class ReelValidator {
 
 
 	timeAdvanceCaseCheck(conf: TimeAdvanceStateConfiguration, accept: ValidationAcceptor) {
-		if(isPortReference(conf.timeAdvance)){
+		if (isPortReference(conf.timeAdvance)) {
 			accept('error', `PortReference is not allowed in TimeAdvanceStateConfiguration.`, {
 				node: conf.timeAdvance,
 				property: 'property'
 			});
 			return;
 		}
-		
+
 		if (conf.timeAdvance === undefined) {
 			accept('error', `Required value 'timeAdvance' is missing.`, {
 				node: conf,
@@ -367,12 +387,12 @@ export class ReelValidator {
 			});
 			return;
 		}
-		
+
 		if (conf.timeAdvance.$cstNode?.text === 'Infinity') {
 			return;
 		}
-		
-		if(isVariableReference(conf.timeAdvance)){
+
+		if (isVariableReference(conf.timeAdvance)) {
 			const type = ReelExpressionChecker.CheckType(conf.timeAdvance);
 			if (type !== 'IntegerExpression') {
 				accept('error', `Type '${type}' is not assignable to type 'IntegerExpression'.`, {
@@ -382,7 +402,7 @@ export class ReelValidator {
 			}
 			return;
 		}
-		
+
 		if (isBinaryExpression(conf.timeAdvance)) {
 			const topExpression = ReelExpressionChecker.GetTopExpression(conf.timeAdvance);
 			const type = ReelExpressionChecker.CheckType(topExpression);
@@ -393,43 +413,53 @@ export class ReelValidator {
 				});
 			}
 		}
-		
+
 	}
 
 
 	stateDefinitionOverridesWithBecomeCheck(condition: StateDefinitionOverridesWithBecome, accept: ValidationAcceptor) {
-		
-		condition.properties?.forEach(prop => {
+
+		condition.properties?.forEach((prop: Expression) => {
 			let type = ReelExpressionChecker.CheckType(prop, "OutPort")
-			if(ReelExpressionChecker.isError(type)){
+			if (ReelExpressionChecker.isError(type)) {
 				accept('error', type.error, {
 					node: type.node,
 					property: 'PortType'
 				});
+				return;
 			}
 		});
-	
+		
+		// set allowed Inports, whic are only these checked in the expression
+		if (isReceiveConditionWithOverride2(condition.$container)) {
+			const ports: Array<PortReference> | undefined = ReelExpressionChecker.GetUsedPorts(condition.$container.condition.expression)
+			condition.properties.forEach(prop => {
+				ReelExpressionChecker.AllowedPortTypes(prop,ports,accept);
+			})
+		}
+		
+
+
 	}
-											
+
 
 	receiveCondition2Check(condition: ReceiveCondition2, accept: ValidationAcceptor) {
 
 		const expression = condition.expression;
-
-		if(expression === undefined) {
+		if (expression === undefined) {
 			return;
 		}
-			
-		
-		if(isPortReference(expression) && expression.portType === "OutPort"){
+
+
+		if (isPortReference(expression) && expression.portType === "OutPort") {
 			accept('error', `OutPort is not valid in transition condition.`, {
 				node: expression,
 				property: 'property'
 			});
 			return;
 		}
-		
-		if(isVariableReference(expression)) {
+
+		if (isVariableReference(expression)) {
 			const type = ReelExpressionChecker.CheckType(expression);
 			if (type !== 'BooleanExpression') {
 				accept('error', `Type '${type}' is not assignable to type 'BooleanExpression'.`, {
@@ -439,21 +469,21 @@ export class ReelValidator {
 			}
 			return;
 		}
-		
+
 		if (isBinaryExpression(expression)) {
 			const topExpression = ReelExpressionChecker.GetTopExpression(expression);
 			const type = ReelExpressionChecker.CheckType(topExpression, "OutPort");
 			if (type !== 'BooleanExpression') {
-				
+
 				const errMessage = ReelExpressionChecker.isError(type) ? type.error : `Type '${type}' is not assignable to type 'BooleanExpression'.`;
-				
+
 				accept('error', errMessage, {
 					node: expression,
 					property: ReelExpressionChecker.isError(type) ? type.which : 'operator'
 				});
 			}
 		}
-		
+
 	}
 }
 

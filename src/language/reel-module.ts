@@ -4,6 +4,7 @@ import { ReelGeneratedModule, ReelGeneratedSharedModule } from './generated/modu
 import { ReelValidator, registerValidationChecks } from './reel-validator.js';
 import { ReelScopeProvider } from '../reel-scope.js';
 import {ReelCompletionProvider} from "../reel-completion.js";
+import {ReelScopeComputation} from "../reel-scope-computation.js";
 
 /**
  * Declaration of custom services - add your own service classes here.
@@ -29,6 +30,7 @@ export type ReelServices = LangiumServices & ReelAddedServices
 export const ReelModule: Module<ReelServices, PartialLangiumServices & ReelAddedServices> = {
     references: {
         ScopeProvider: (services) => new ReelScopeProvider(services),
+        ScopeComputation: (services) => new ReelScopeComputation(services)
     },
     
     validation: {
