@@ -69,7 +69,7 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 			}
 			if (isStateDefinitionOverrides(model)) {
 				// get the corresponding State
-				const props = model.$container.stateType.ref?.properties;
+				const props = model.$container.stateType?.ref?.properties;
 
 				// for each property of the state, create a completion item
 				for (const property of props ?? []) {
@@ -88,7 +88,7 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 					const {state, path} = ReelInference.getStateFromObjectOverride(model.$container);
 
 					// get the object in the state
-					const stateElement = state.$container.stateType.ref
+					const stateElement = state.$container.stateType?.ref
 
 					if (stateElement === undefined) {
 						return;
@@ -110,7 +110,11 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 				
 				if (isStateDefinitionOverrides(model.$container)) {
 				// get the corresponding State
-				const props = model.$container.$container.stateType.ref?.properties;
+				const props = model.$container?.$container?.stateType?.ref?.properties;
+				
+				if( props === undefined) {
+					return;
+				}
 
 				// for each property of the state, create a completion item
 				for (const property of props ?? []) {
@@ -129,7 +133,7 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 				const {state, path} = ReelInference.getStateFromObjectOverride(model);
 
 				// get the object in the state
-				const stateElement = state.$container.stateType.ref
+				const stateElement = state.$container?.stateType?.ref
 
 				if (stateElement === undefined) {
 					return;

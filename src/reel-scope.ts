@@ -4,11 +4,12 @@ import {
 import {
 	AtomicShortModel,
 	isAtomicModel, isAtomicShortModel,
-	isExpression, isOBJECT,
+	isExpression, isModelReference, isOBJECT,
 	isOBJECT_OVERRIDE,
 	isOutputMap, isPortReference,
 	isReceiveCase,
 	isReceiveCondition, isReceiveCondition2, isStateConfiguration,
+	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceCondition,
 	isVariableOverride,
@@ -31,17 +32,17 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				}
 				break;
 			case 'AtomicShortModel':
-				// if(context.property === 'person') {
-				return this.getImportedModelsFromCurrentFile(context);
-				//}
-				// break;
-			case 'State':
-				return this.getImportedModelsFromCurrentFile(context);
+				 if(context.property === 'stateType') {
+				 	return super.getScope(context);
+				}else{
+					 console.log('context.container', context.container);
+					 return this.getImportedModelsFromCurrentFile(context);
+				 }
+			case 'StateTypes':
+				 return this.getImportedStatesFromCurrentFile(context);
+				 
 		}
 		
-		
-		// const container = context.container;
-
 		// target element of member calls
 		if (context.property === 'ref' && isVariableOverride(context.container)) {
 
@@ -70,12 +71,21 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 
 				return this.scopeState(stateType.ref);
 			}
+			
+			if(isModelReference(memberCall.$container.$container)) {
+				const atomicModel = memberCall.$container.$container.atomicModel;
+				if (atomicModel?.ref?.stateType.ref === undefined) {
+					return super.getScope(context);
+				}
+
+				return this.scopeState(atomicModel.ref.stateType.ref);
+			}
 
 
 			if (isOBJECT_OVERRIDE(memberCall.$container)) {
 				const {state, path} = ReelInference.getStateFromObjectOverride(memberCall.$container);
 
-				if (state.$container.stateType.ref === undefined) {
+				if (state.$container?.stateType?.ref === undefined) {
 					return super.getScope(context);
 				}
 
@@ -207,6 +217,27 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			return this.createPortNodes(state?.ports?.ports, 'OutPort');
 		}
 
+		if(isStateDefinitionOverrides(context.container) ) {
+			const atomicModel = ReelInference.getAtomicModel(context.container);
+
+
+			if (atomicModel?.stateType.ref === undefined) {
+				return super.getScope(context);
+			}
+
+
+			return this.createScopeForNodes((atomicModel.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
+				$type: x.$type,
+				$containerIndex: x.$containerIndex,
+				name: x.name,
+				$containerProperty: x.$containerProperty,
+				$container: x.$container,
+				$containerRef: x.$container,
+				$cstNode: x.$cstNode,
+				$document: x.$document,
+			}) ?? []));
+		}
+
 
 		if (isStateDefinitionOverridesWithBecome(context.container)) {
 
@@ -266,6 +297,16 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 
 		}
 
+		if(isModelReference(context.container) && context.property === 'stateType') {
+			
+			// add scope for models
+
+			if(context.container.atomicModel?.ref?.stateType.$nodeDescription !== undefined) {
+				return this.createScope([context.container.atomicModel.ref.stateType.$nodeDescription]);
+			}
+
+		}
+		
 		console.log(context.container.$type)
 
 		return super.getScope(context);
@@ -394,8 +435,21 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			//otherwise return nothing
 			return undefined;
 		}).filter(d => d != undefined)).map(d => d!);
+		
+		const localDescriptions = model.elements.filter(x => isAtomicShortModel(x)).map(x => this.descriptions.createDescription(x, x.name));
+		
+		return this.createScope([...descriptions,...localDescriptions]);
+	}
+	
+	private getImportedStatesFromCurrentFile(context: ReferenceInfo) {
 
-		const des2 = model.fileImports.flatMap(fi => fi.stateImports.map(pi => {
+		//get current document of reference
+		const document = AstUtils.getDocument(context.container);
+		//get current model
+		const model = document.parseResult.value as Model;
+		
+
+		const importedStates = model.fileImports.flatMap(fi => fi.stateImports.map(pi => {
 
 			//if import references to a person, return that person
 			if (pi.ref) {
@@ -407,6 +461,12 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		}).filter(d => d != undefined)).map(d => d!);
 		
 		
-		return this.createScope([...descriptions, ...des2]);
+		// get all states from the current model
+		const localStates = model.elements.filter(x => isAtomicShortModel(x)).flatMap(x => (x as AtomicShortModel).stateType?.ref?.stateType?.StateName.map(y => this.descriptions.createDescription(y, y.name)) ?? []);
+	
+		return this.createScope([...importedStates,...localStates]);
 	}
+	
+	
+	
 }

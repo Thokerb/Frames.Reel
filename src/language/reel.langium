@@ -1,8 +1,8 @@
 grammar Reel
 
 entry Model:
-    fileImports+=FileImport   //NEW: imports per file
-    | elements+=Element+
+    fileImports+=FileImport*   //NEW: imports per file
+    elements+=Element*
 ;
 
 Element:
@@ -15,10 +15,20 @@ Element:
 
 CoupledModel:
     'coupled' 'model' name=ID '{'  
+        (models+=ModelReference)*
+        (couplings+=CouplingDefinition)*
 
     '}'
 ;
 
+CouplingDefinition:
+    'Connect' (sourceModel=[ModelReference:ID] '.' sourcePort=[Port:ID] 'to' targetModel=[ModelReference:ID] '.' targetPort=[Port:ID]) //NEW: source and target ports
+;
+
+ModelReference:
+    (atomicModel=[AtomicShortModel:ID] name=ID 'with' stateType=[State]  definitionOverrides=StateDefinitionOverrides?)//NEW: reference to AtomicShortModel
+    | coupledModel=[CoupledModel:ID] //NEW: reference to CoupledModel
+;
 
 
 FileImport: //NEW: imports of the same file are gathered in a list
@@ -154,6 +164,7 @@ TimeAdvanceCondition:
 
 StateDefinitionOverrides:
     ('{'
+        'initial' '=' initialState=[StateName] ';'
         (properties+=PropertiesOverride)* 
     '}')
 ;

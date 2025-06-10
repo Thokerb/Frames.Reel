@@ -9,6 +9,12 @@ coupled model Room("room") {
             }
         }
     }
+
+
+    BlinkingLightModel "bl2" {
+        state: 
+    }
+
     
     AddModel(BlinkingLightModel, "bl2") {
         state: BlinkingLightState {

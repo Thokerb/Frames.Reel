@@ -1,8 +1,8 @@
 ﻿import {
 	AtomicModel, AtomicShortModel,
 	BinaryExpression,
-	isAtomicModel,
-	isBinaryExpression,
+	isAtomicModel, isAtomicShortModel,
+	isBinaryExpression, isModelReference,
 	isObjectExpression, isOutputCase, isOutputMap, isReceiveCase, isReceiveCondition, isReceiveCondition2,
 	isState, isStateConfiguration,
 	isStateDefinitionOverrides,
@@ -130,8 +130,36 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | BinaryExpression | ReceiveCondition | ReceiveCase | OutputMap | OutputCase | TimeAdvanceStateConfiguration | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition2 | StateConfiguration): AtomicModel | AtomicShortModel | undefined {
+	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | ReceiveCondition | ReceiveCase | OutputMap | OutputCase | TimeAdvanceStateConfiguration | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition2 | StateConfiguration): AtomicModel | AtomicShortModel | undefined {
 
+		
+		if(isStateDefinitionOverrides(container)) {
+			switch (container.$container.$type) {
+				case "ModelReference":
+					if(isModelReference(container.$container)) {
+						if(container.$container.atomicModel !== undefined) {
+							return container.$container.atomicModel.ref;
+						}
+						if(container.$container.coupledModel !== undefined) {
+							return undefined;
+						}
+					}
+					break;
+				case "AtomicModel":
+					if(isAtomicModel(container.$container)) {
+						return container.$container;
+					}
+					break;
+				case "AtomicShortModel":
+					if(isAtomicShortModel(container.$container)) {
+						return container.$container;
+					}
+					break;
+
+			}
+
+		}
+		
 		if(isReceiveCase(container)) {
 			return container.$container;
 		}

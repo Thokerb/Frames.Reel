@@ -18,6 +18,7 @@ export class ReelScopeComputation extends DefaultScopeComputation {
                 isAtomicShortModel(p) && p.stateType.ref ?
                 this.descriptions.createDescription(p.stateType.ref, p.stateType.ref.name) : undefined).filter((p): p is AstNodeDescription => p !== undefined);
         
+
         return [...models, ...states];
         
     }
