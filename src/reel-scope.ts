@@ -3,7 +3,8 @@ import {
 } from 'langium';
 import {
 	AtomicShortModel,
-	isAtomicModel, isAtomicShortModel,
+	CoupledModel,
+	isAtomicModel, isAtomicShortModel, isCoupledModel, isCouplingDefinition,
 	isExpression, isModelReference, isOBJECT,
 	isOBJECT_OVERRIDE,
 	isOutputMap, isPortReference,
@@ -36,11 +37,10 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				 	return super.getScope(context);
 				}else{
 					 console.log('context.container', context.container);
-					 return this.getImportedModelsFromCurrentFile(context);
+					 return this.getImportedModelsFromCurrentFile(context, 'AtomicShortModel');
 				 }
-			case 'StateTypes':
-				 return this.getImportedStatesFromCurrentFile(context);
-				 
+			case 'CoupledModel':
+				return this.getImportedModelsFromCurrentFile(context, 'CoupledModel');					
 		}
 		
 		// target element of member calls
@@ -95,7 +95,6 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				}
 
 				return this.scopeObjectExpression(element);
-
 			}
 		}
 
@@ -307,6 +306,40 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 
 		}
 		
+		if(isCouplingDefinition(context.container)) {
+
+			if(context.property === 'sourcePort' || context.property === 'targetPort') {
+				let sourceModel =  context.container.sourceModel?.ref?.atomicModel?.ref ?? context.container.sourceModel?.ref?.coupledModel?.ref;
+				let targetModel = context.container.targetModel?.ref?.atomicModel?.ref ?? context.container.targetModel?.ref?.coupledModel?.ref;
+				
+				if(context.container.thisTargetModel && context.property === 'targetPort') {
+					targetModel = context.container.$container;
+				}
+				if(context.container.thisSourceModel && context.property === 'sourcePort') {
+					sourceModel = context.container.$container;
+				}
+
+				const model = context.property === 'sourcePort' ? sourceModel : targetModel;
+				
+				if (model === undefined) {
+					return super.getScope(context);
+				}
+				const sourcePorts = model.ports?.ports ?? [] 
+				
+				let allowedPortType: PortType = context.property === 'sourcePort' ? 'OutPort' : 'InPort';
+				
+				// flip allowedPortType when linking within coupledmodel within 
+				if(context.container.thisTargetModel && context.property === 'targetPort' ||
+					context.container.thisSourceModel && context.property === 'sourcePort'
+				) {
+					allowedPortType = allowedPortType === 'InPort' ? 'OutPort' : 'InPort';
+				}
+				
+				return this.createPortNodes( sourcePorts, allowedPortType);
+			}
+			
+		}
+		
 		console.log(context.container.$type)
 
 		return super.getScope(context);
@@ -415,57 +448,38 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		}
 		//get all possible persons from these files
 		const astNodeDescriptions = this.indexManager.allElements(AtomicShortModel, uris).toArray();
+		const astNodeDescriptions2 = this.indexManager.allElements(CoupledModel, uris).toArray();
 		//convert them to descriptions inside of a scope
-		return this.createScope(astNodeDescriptions);
+		return this.createScope([...astNodeDescriptions, ...astNodeDescriptions2]);
 	}
 
-	private getImportedModelsFromCurrentFile(context: ReferenceInfo) {
+	private getImportedModelsFromCurrentFile(context: ReferenceInfo, modelType: 'AtomicShortModel' | 'CoupledModel'): Scope {
 		//get current document of reference
 		const document = AstUtils.getDocument(context.container);
 		//get current model
 		const model = document.parseResult.value as Model;
 		//go through all imports
-		const descriptions = model.fileImports.flatMap(fi => fi.modelImports.map(pi => {
+		const descriptions = model.fileImports.flatMap(fi => {
+			
+			const pi = fi.modelImport;
 			
 			//if import references to a person, return that person
-			if (pi.model.ref) {
-				return this.descriptions.createDescription(pi.model.ref, pi.model.ref.name);
+			if (modelType === 'AtomicShortModel' && pi.atomicModel?.ref) {
+				return this.descriptions.createDescription(pi.atomicModel.ref, pi.atomicModel.ref.name);
+			}
+			if (modelType === 'CoupledModel' && pi.coupledModel?.ref) {
+				return this.descriptions.createDescription(pi.coupledModel.ref, pi.coupledModel.ref.name);
 			}
 			
 			//otherwise return nothing
 			return undefined;
-		}).filter(d => d != undefined)).map(d => d!);
+		}).filter(d => d != undefined).map(d => d!);
 		
-		const localDescriptions = model.elements.filter(x => isAtomicShortModel(x)).map(x => this.descriptions.createDescription(x, x.name));
+		const localDescriptions = model.elements.filter(x => isAtomicShortModel(x) || isCoupledModel(x)).map(x => this.descriptions.createDescription(x, x.name));
 		
 		return this.createScope([...descriptions,...localDescriptions]);
 	}
 	
-	private getImportedStatesFromCurrentFile(context: ReferenceInfo) {
-
-		//get current document of reference
-		const document = AstUtils.getDocument(context.container);
-		//get current model
-		const model = document.parseResult.value as Model;
-		
-
-		const importedStates = model.fileImports.flatMap(fi => fi.stateImports.map(pi => {
-
-			//if import references to a person, return that person
-			if (pi.ref) {
-				return this.descriptions.createDescription(pi.ref, pi.ref.name);
-			}
-
-			//otherwise return nothing
-			return undefined;
-		}).filter(d => d != undefined)).map(d => d!);
-		
-		
-		// get all states from the current model
-		const localStates = model.elements.filter(x => isAtomicShortModel(x)).flatMap(x => (x as AtomicShortModel).stateType?.ref?.stateType?.StateName.map(y => this.descriptions.createDescription(y, y.name)) ?? []);
-	
-		return this.createScope([...importedStates,...localStates]);
-	}
 	
 	
 	

@@ -14,7 +14,8 @@ Element:
 
 
 CoupledModel:
-    'coupled' 'model' name=ID '{'  
+    published?='export'? 'coupled' 'model' name=ID '{'  
+        (ports=PortConfiguration)?
         (models+=ModelReference)*
         (couplings+=CouplingDefinition)*
 
@@ -22,24 +23,23 @@ CoupledModel:
 ;
 
 CouplingDefinition:
-    'Connect' (sourceModel=[ModelReference:ID] '.' sourcePort=[Port:ID] 'to' targetModel=[ModelReference:ID] '.' targetPort=[Port:ID]) //NEW: source and target ports
+    'Connect' ( (thisSourceModel?='this'|sourceModel=[ModelReference:ID]) '.' sourcePort=[Port:ID] 'to' (targetModel=[ModelReference:ID] | thisTargetModel?='this') '.' targetPort=[Port:ID]) //NEW: source and target ports
 ;
 
 ModelReference:
     (atomicModel=[AtomicShortModel:ID] name=ID 'with' stateType=[State]  definitionOverrides=StateDefinitionOverrides?)//NEW: reference to AtomicShortModel
-    | coupledModel=[CoupledModel:ID] //NEW: reference to CoupledModel
+    |( coupledModel=[CoupledModel:ID] name=ID)//NEW: reference to CoupledModel
 ;
 
 
 FileImport: //NEW: imports of the same file are gathered in a list
-    'import' 'model'  
-        (modelImports+=ModelImports ('with' 'state' stateImports+=[State])? (',' modelImports+=ModelImports ('with' 'state' stateImports+=[State])?)* )?
-        (('as' alias=ID)? 'from')? //NEW: optional alias
+    'import'  
+        modelImport=ModelImports
     'from' file=STRING
 ; 
 
 ModelImports:
-    model=[AtomicShortModel:ID]
+    ('atomic' atomicModel=[AtomicShortModel:ID]) |('coupled' coupledModel=[CoupledModel:ID]) //NEW: reference to AtomicShortModel or CoupledModel
 ;
 
 

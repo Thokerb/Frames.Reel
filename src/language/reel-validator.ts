@@ -21,7 +21,8 @@ import {
 	Port,
 	Properties,
 	PropertiesOverride,
-	isReceiveConditionWithOverride2
+	isReceiveConditionWithOverride2,
+	CouplingDefinition, isOBJECT
 } from './generated/ast.js';
 import type {ReelServices} from './reel-module.js';
 import {ReelExpressionChecker} from "../reel-expression-checker.js";
@@ -46,6 +47,7 @@ export function registerValidationChecks(services: ReelServices) {
 		ReceiveCondition2: validator.receiveCondition2Check,
 		StateDefinitionOverridesWithBecome: validator.stateDefinitionOverridesWithBecomeCheck,
 		PortConfiguration: validator.portConfigurationCheck,
+		CouplingDefinition: validator.couplingDefinitionCheck,
 	};
 	registry.register(checks, validator);
 }
@@ -80,6 +82,54 @@ export class ReelValidator {
 			}
 			reported.add(p?.name);
 		});
+	}
+
+	couplingDefinitionCheck(def: CouplingDefinition, accept: ValidationAcceptor): void {
+
+		const leftPortType = def.sourcePort.ref?.valueType;
+		const rightPortType = def.targetPort.ref?.valueType;
+
+		if (leftPortType === undefined || rightPortType === undefined) {
+			return;
+		}
+
+		if (isOBJECT(leftPortType)) {
+			if (!isOBJECT(rightPortType)) {
+				accept('error', `Type '${rightPortType}' is not assignable to type '${leftPortType}'.`, {
+					node: def,
+					property: 'targetPort'
+				});
+			} else if (isOBJECT(rightPortType)) {
+				leftPortType.properties.forEach((leftProp) => {
+					const rightProp = rightPortType.properties.find(p => p.name === leftProp.name);
+					
+					const targetModel = def.thisTargetModel ? def.$container.name : def.targetModel?.ref?.name ?? '';
+					const sourceModel = def.thisSourceModel ? def.$container.name : def.sourceModel?.ref?.name ?? '';
+					
+					if (rightProp === undefined) {
+						accept('error', `Property '${leftProp.name}'  does not exist in ${targetModel}.${def.targetPort.ref?.name}'.`, {
+							node: def,
+							property: 'targetPort'
+						});
+					} else if (leftProp.$type !== rightProp.$type || leftProp.name !== rightProp.name) {
+						accept('error', `Property '${leftProp.name}' in ${sourceModel}.${def.sourcePort.ref?.name} is not assignable to property '${rightProp.name}' in ${targetModel}.${def.targetPort.ref?.name}
+						Must be of type '${leftProp.$type}' but is of type '${rightProp.$type}'.
+						`, {
+							node: def,
+							property: 'targetPort'
+						});
+					}
+				});
+			}
+			return;
+		}
+		if(leftPortType !== rightPortType) {
+			accept('error', `Type '${rightPortType}' is not assignable to type '${leftPortType}'.`, {
+				node: def,
+				property: 'targetPort'
+			});
+		}
+
 	}
 
 	checkUniqueParamsObjectExpression(def: ObjectExpression, accept: ValidationAcceptor): void {
@@ -429,15 +479,14 @@ export class ReelValidator {
 				return;
 			}
 		});
-		
+
 		// set allowed Inports, whic are only these checked in the expression
 		if (isReceiveConditionWithOverride2(condition.$container)) {
 			const ports: Array<PortReference> | undefined = ReelExpressionChecker.GetUsedPorts(condition.$container.condition.expression)
 			condition.properties.forEach(prop => {
-				ReelExpressionChecker.AllowedPortTypes(prop,ports,accept);
+				ReelExpressionChecker.AllowedPortTypes(prop, ports, accept);
 			})
 		}
-		
 
 
 	}

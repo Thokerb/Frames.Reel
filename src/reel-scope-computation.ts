@@ -1,5 +1,5 @@
 import {AstNode, AstNodeDescription, DefaultScopeComputation, LangiumDocument} from "langium";
-import {isAtomicShortModel, Model} from "./language/generated/ast.js";
+import {isAtomicShortModel, isCoupledModel, isState, Model} from "./language/generated/ast.js";
 
 export class ReelScopeComputation extends DefaultScopeComputation {
     override async computeExports(document: LangiumDocument<AstNode>): Promise<AstNodeDescription[]> {
@@ -7,16 +7,18 @@ export class ReelScopeComputation extends DefaultScopeComputation {
         
         // export models
         const models = model.elements
-            .filter(p => isAtomicShortModel(p) && p.published)
+            .filter(p => (isAtomicShortModel(p) || isCoupledModel(p)) && p.published)
             .map(p => this.descriptions.createDescription(p, p.name));
         
         
+        const modelStateNames = model.elements.filter(p => isAtomicShortModel(p) && p.published).map(p => 
+        isAtomicShortModel(p)  ? p.stateType.$refText : undefined).filter((p): p is string => p !== undefined);
+        
         // automatically export corresponding states (TODO: the explicit export of states is ignored ??)
-        const states = model.elements
-            .filter(p => isAtomicShortModel(p) && p.stateType.ref)
+        const states = model.elements.filter(p => isState(p)).filter(p => modelStateNames.includes(p.name))
             .map(p => 
-                isAtomicShortModel(p) && p.stateType.ref ?
-                this.descriptions.createDescription(p.stateType.ref, p.stateType.ref.name) : undefined).filter((p): p is AstNodeDescription => p !== undefined);
+                isState(p) ?
+                this.descriptions.createDescription(p, p.name) : undefined).filter((p): p is AstNodeDescription => p !== undefined);
         
 
         return [...models, ...states];
