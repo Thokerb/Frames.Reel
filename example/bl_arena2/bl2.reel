@@ -1,0 +1,57 @@
+﻿state BlinkingLightState2 {
+    states: [on|off|kabumm];
+    initial= kabumm;
+    bool isOn = true;
+    int count = 1;
+    bool age = false;
+    string t = "232";
+    object engine = {
+        int power = 500;
+        string company = "tesla";
+        object owner = {
+            string fullName = "JOHN DOE";
+            int age = 18;
+        }
+    }
+}
+
+export atomic2 model BlinkingLightModel2 {
+    state: BlinkingLightState2 {
+        initial = off;
+        age = true;
+        engine = {
+            company = "wwwwwwwwwwwwwwww";
+
+            owner = {
+                age = 1;           
+                fullName = "2"; 
+                }
+        }
+    }
+    
+     section Ports {
+         int InPort awasd;
+         {string a; bool b; } InPort c;
+         int InPort e;
+         int OutPort aa;
+         bool InPort PRWA;
+         string OutPort x;
+     }
+
+     stateDefinition on: {
+         time-advance: count+3 TimeUnits
+         transitions: {
+             (tr1) with InPort awasd < 22222 and InPort awasd > 2 or engine.company == "tesla" => {
+                 state.name becomes kabumm;
+                 engine.power = InPort awasd;
+             }
+             (tr2) with age => {
+                 state.name becomes off;
+             }
+         }
+         output: {
+             x: "2";
+         }
+     }
+
+}

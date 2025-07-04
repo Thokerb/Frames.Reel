@@ -1,0 +1,74 @@
+state BlinkingLightStateBR {
+    states: [On|Off|FinishedByItself|FinishedByOther|TransitionFinishedByItself];
+    initial = On;
+    int MaxCycles = 0;
+    int CurrentCycle = 0;
+    int WaitingTime = 2;
+}
+
+export atomic2 model BlinkingLightAtomicModelBR {
+    state: BlinkingLightStateBR {
+        initial = On;
+        MaxCycles = 0;
+        CurrentCycle = 0;
+        WaitingTime = 2;
+    }
+
+    section Ports {
+        int InPort PortInFinishedByOther;
+        int OutPort PortOutFinished;
+    }
+
+    stateDefinition On: {
+        time-advance: 2 TimeUnits
+        transitions: {
+            (toTransitionFinishedByItself) with CurrentCycle >= MaxCycles => {
+                state.name becomes TransitionFinishedByItself;
+            }
+            (toOff) => {
+                state.name becomes Off;
+                CurrentCycle = CurrentCycle + 1;
+            }
+            (externalToOff) with InPort PortInFinishedByOther.any => {
+                state.name becomes Off;
+            }
+        }
+        output: {}
+    }
+    stateDefinition Off: {
+        time-advance: WaitingTime TimeUnits
+        transitions: {
+            (toOn) => {
+                state.name becomes On;
+            }
+            (externalToOff) with InPort PortInFinishedByOther.any => {
+                state.name becomes Off;
+            }
+            
+        }
+        output: {}
+    }
+    stateDefinition TransitionFinishedByItself: {
+        time-advance: 1 TimeUnits
+        transitions: {
+            (toFinishedByItself) => {
+                state.name becomes FinishedByItself;
+            }
+        }
+        output: {}
+    }
+
+    stateDefinition FinishedByItself: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {
+            PortOutFinished: MaxCycles;
+        }
+    }
+
+    stateDefinition FinishedByOther: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {}
+    }
+}

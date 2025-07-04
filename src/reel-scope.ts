@@ -110,7 +110,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 
 		if (isVariableReference(context.container)) {
 			const variable = context.container;
-			console.log('context', context)
+			// console.log('context', context)
 			const state = ReelInference.getStateFromVariableReference(variable);
 			if (state === undefined) {
 				return super.getScope(context);
@@ -340,7 +340,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			
 		}
 		
-		console.log(context.container.$type)
+		console.log('default: ',context.container.$type)
 
 		return super.getScope(context);
 	}

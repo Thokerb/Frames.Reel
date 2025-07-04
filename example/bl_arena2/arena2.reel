@@ -1,0 +1,29 @@
+﻿import atomic BlinkingLightAtomicModelBR from './blinking_light.reel'
+import atomic BlinkingLightModel2 from './bl2.reel'
+import coupled CArena from './blinking_light_arena.reel'
+
+coupled model BlinkingLightArena2 {
+
+    section Ports {
+        int InPort coupledIn;
+        int OutPort coupledOut;
+    }
+
+    BlinkingLightAtomicModelBR bl12 with BlinkingLightStateBR {
+        initial = FinishedByItself;
+        
+    }
+    
+    CArena arena
+
+    BlinkingLightModel2 bl22 with BlinkingLightState2 {
+        initial = kabumm;
+        isOn = true;
+    }
+
+
+    Connect bl12.PortOutFinished to bl22.awasd
+    Connect bl22.aa to bl12.PortInFinishedByOther
+    Connect arena.OutArena to bl12.PortInFinishedByOther 
+
+}
