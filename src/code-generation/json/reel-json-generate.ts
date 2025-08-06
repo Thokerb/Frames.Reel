@@ -2,10 +2,18 @@
 	AtomicShortModel, CoupledModel, Expression, isAtomicShortModel, isCoupledModel, isOBJECT, isOBJECT_OVERRIDE,
 	isObjectExpression, isPortReference,
 	isState, isVariableOverride, isVariableReference,
-	Model, ModelReference, OBJECT, PortType, PropertiesOverride, ReceiveConditionWithOverride2,
+	Model, ModelReference, OBJECT, PropertiesOverride, ReceiveConditionWithOverride2,
 	State, StateConfiguration, Variable, VariableOverride, VariableReference
 } from "../../language/generated/ast.js";
 import {ReelExpressionChecker} from "../../reel-expression-checker.js";
+import {
+	AtomicModelJson, CoupledModelJson,
+	ExpressionJson, ModelReferenceJson,
+	PortObjectMap, ReelJson,
+	StateConfigurationJson, StateJson,
+	StatePropertyJson,
+	TransitionJson
+} from "./json-types.js";
 
 function generateStateObject(state: State) {
 	let stateObject: StateJson = {
@@ -18,32 +26,7 @@ function generateStateObject(state: State) {
 	return stateObject;
 }
 
-export interface ReelJson {
-	states: Array<StateJson>;
-	atomicModels: Array<AtomicModelJson>;
-	coupledModels: Array<CoupledModelJson>;
-}
 
-export interface CoupledModelJson {
-	name: string;
-	ports: Array<PortJson>;
-	models: Array<ModelReferenceJson>;
-	couplings: Array<{
-		sourceModel: string; // 'this' or model name
-		sourcePort: string; // Port name
-		targetModel: string; // 'this' or model name
-		targetPort: string; // Port name
-		type: ExpressionValueType; // Type of the port value
-	}>;
-}
-
-export interface ModelReferenceJson {
-	name: string;
-	isAtomicModel: boolean;
-	modelRef: string; // Reference to the atomic model or coupled model
-	modelOverrides?: Array<StatePropertyJson>; // Overrides for the model's state properties
-	initialState?: string; // Initial state reference
-}
 
 function generateModel(m: ModelReference): ModelReferenceJson {
 
@@ -123,19 +106,7 @@ export function generateJsonObjects(model: Model, otherModel: Array<Model>): Ree
 }
 
 
-export interface StatePropertyJson {
-	name: string;
-	type: string;
-	value: any; // This could be more specific based on the type of the property
-	// Add other relevant fields as needed
-}
 
-export interface StateJson {
-	name: string;
-	states: Array<string>;
-	initialState: string;
-	properties: Array<StatePropertyJson>;
-}
 
 function flattenStateProperties(
 	properties: Array<Variable | VariableOverride | PropertiesOverride>,
@@ -145,23 +116,29 @@ function flattenStateProperties(
 
 	properties.forEach(prop => {
 
-		const varName = isVariableOverride(prop) ? prop.ref.ref?.name : prop.name;
+		const varName = isVariableOverride(prop) ? prop.ref.ref?.name ?? '' : prop.name;
 		
-		const name = [...parentPath, varName].join('.');
 
 
 		if (isObjectExpression(prop)) {
-			result.push(...flattenStateProperties(prop.value.properties, [...parentPath, name]));
+			result.push(...flattenStateProperties(prop.value.properties, [...parentPath, varName]));
 		} else {
 			if (isOBJECT_OVERRIDE(prop.value) && isVariableOverride(prop)) {
-				result.push(...flattenStateProperties(prop.value.properties, [...parentPath, name]))
+				result.push(...flattenStateProperties(prop.value.properties, [...parentPath, varName]))
 			} else {
 				
-				if(!isOBJECT(prop.value) && ! isOBJECT_OVERRIDE(prop.value)) {
+				if(!isOBJECT(prop.value) && !isOBJECT_OVERRIDE(prop.value)) {
+					
+					let t: "ObjectExpression" | "BooleanExpression" | "IntegerExpression"  | "StringExpression" | undefined = isVariableOverride(prop)  ? prop.ref.ref?.$type : prop.$type;
+					if(t === "ObjectExpression" || t === undefined) {
+						throw new Error("ObjectExpression is not supported in this context");
+					}
+					const name = [...parentPath, varName].join('.');
+
 					result.push(
 						{
 							name: name,
-							type: prop.$type,
+							type: t,
 							value: prop.value
 						}
 					);
@@ -175,34 +152,9 @@ function flattenStateProperties(
 	return result;
 }
 
-export interface ExpressionJson {
-	expression: string;
-	isAssignment?: boolean; // Indicates if this expression is an assignment
-	returnType?: ExpressionValueType // The type of the expression, e.g., 'int', 'bool', 'string', etc.
-}
-
 export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression';
 
-export interface OutputJson {
-	port: string; // Name of the port
-	value: ExpressionJson;
-}
 
-export interface TransitionJson {
-	name?: string;
-	transitionCondition: ExpressionJson;
-	transitionNewStateTypeRef: string;
-	transitionStateModifications: Array<ExpressionJson>;
-}
-
-export interface StateConfigurationJson {
-	stateTypeRef: string;
-
-	timeAdvanceExpression: ExpressionJson;
-	output: Array<OutputJson>;
-
-	transitions: Array<TransitionJson>;
-}
 
 // TODO: use cstNode or reflect the variable name
 function GetVariableName(ref: VariableReference): string {
@@ -237,6 +189,7 @@ function ToExpressionJson(expr: Expression): ExpressionJson {
 	if (isVariableReference(expr)) {
 		return {
 			expression: GetVariableName(expr),
+			variables: [GetVariableName(expr)],
 			isAssignment: false,
 			returnType: GetVariable(expr)?.$type
 		}
@@ -245,6 +198,7 @@ function ToExpressionJson(expr: Expression): ExpressionJson {
 	if (isPortReference(expr)) {
 		return {
 			expression: expr.property.ref?.name ?? '',
+			variables: [expr.property.ref?.name ?? ''],
 			isAssignment: false,
 			returnType: MapPortType(expr.property.ref?.valueType)
 		}
@@ -259,6 +213,7 @@ function ToExpressionJson(expr: Expression): ExpressionJson {
 	const isAssignment = topExpression.operator === '=';
 	return {
 		returnType: returnType,
+		variables: ReelExpressionChecker.GetVariables(expr),
 		isAssignment: isAssignment,
 		expression: expr.$cstNode!.text
 	}
@@ -269,6 +224,7 @@ function generateTransition(tr: ReceiveConditionWithOverride2): TransitionJson {
 		name: tr.condition.name,
 		transitionCondition: tr.condition.expression !== undefined ? ToExpressionJson(tr.condition.expression) : {
 			expression: '',
+			variables: [],
 			returnType: 'BooleanExpression',
 			isAssignment: false
 		},
@@ -341,25 +297,3 @@ function generateAtomicModelObject(model: AtomicShortModel) {
 
 }
 
-export interface PortJson {
-	name: string;
-	type: PortType;
-	valueType: 'bool' | 'int' | 'string' | Array<PortObjectMap>
-}
-
-export interface PortObjectMap {
-	name: string;
-	valueType: 'bool' | 'int' | 'string';
-}
-
-export interface AtomicModelJson {
-	// Define the structure of the atomic model JSON object
-	// For example:
-	name: string;
-	stateRef: string; // Reference to the state type
-	ports: Array<PortJson>;
-	states: Array<StateConfigurationJson>;
-	stateDefinitions: Array<StatePropertyJson>; // Assuming state definitions are similar to states
-	initialState?: string; // Optional initial state
-	// Add other relevant fields as needed
-}

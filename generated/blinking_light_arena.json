@@ -1,0 +1,324 @@
+{
+	"states": [
+		{
+			"name": "BlinkingLightStateBR",
+			"properties": [
+				{
+					"name": "MaxCycles",
+					"type": "IntegerExpression",
+					"value": 0
+				},
+				{
+					"name": "CurrentCycle",
+					"type": "IntegerExpression",
+					"value": 0
+				},
+				{
+					"name": "WaitingTime",
+					"type": "IntegerExpression",
+					"value": 2
+				}
+			],
+			"states": [
+				"On",
+				"Off",
+				"FinishedByItself",
+				"FinishedByOther",
+				"TransitionFinishedByItself"
+			],
+			"initialState": "On"
+		}
+	],
+	"atomicModels": [
+		{
+			"name": "BlinkingLightAtomicModelBR",
+			"ports": [
+				{
+					"name": "PortInFinishedByOther",
+					"type": "InPort",
+					"valueType": "int"
+				},
+				{
+					"name": "PortOutFinished",
+					"type": "OutPort",
+					"valueType": "int"
+				}
+			],
+			"stateRef": "BlinkingLightStateBR",
+			"stateDefinitions": [
+				{
+					"name": "MaxCycles",
+					"type": "IntegerExpression",
+					"value": 0
+				},
+				{
+					"name": "CurrentCycle",
+					"type": "IntegerExpression",
+					"value": 0
+				},
+				{
+					"name": "WaitingTime",
+					"type": "IntegerExpression",
+					"value": 2
+				}
+			],
+			"initialState": "On",
+			"states": [
+				{
+					"stateTypeRef": "On",
+					"timeAdvanceExpression": {
+						"returnType": "IntegerExpression",
+						"variables": [],
+						"isAssignment": false,
+						"expression": "2"
+					},
+					"transitions": [
+						{
+							"name": "toTransitionFinishedByItself",
+							"transitionCondition": {
+								"returnType": "BooleanExpression",
+								"variables": [
+									"CurrentCycle",
+									"MaxCycles"
+								],
+								"isAssignment": false,
+								"expression": "CurrentCycle >= MaxCycles"
+							},
+							"transitionNewStateTypeRef": "TransitionFinishedByItself",
+							"transitionStateModifications": []
+						},
+						{
+							"name": "toOff",
+							"transitionCondition": {
+								"expression": "",
+								"variables": [],
+								"returnType": "BooleanExpression",
+								"isAssignment": false
+							},
+							"transitionNewStateTypeRef": "Off",
+							"transitionStateModifications": [
+								{
+									"returnType": "IntegerExpression",
+									"variables": [
+										"CurrentCycle",
+										"CurrentCycle"
+									],
+									"isAssignment": true,
+									"expression": "CurrentCycle = CurrentCycle + 1"
+								}
+							]
+						},
+						{
+							"name": "externalToOff",
+							"transitionCondition": {
+								"expression": "PortInFinishedByOther",
+								"variables": [
+									"PortInFinishedByOther"
+								],
+								"isAssignment": false,
+								"returnType": "IntegerExpression"
+							},
+							"transitionNewStateTypeRef": "Off",
+							"transitionStateModifications": []
+						}
+					],
+					"output": []
+				},
+				{
+					"stateTypeRef": "Off",
+					"timeAdvanceExpression": {
+						"expression": "WaitingTime",
+						"variables": [
+							"WaitingTime"
+						],
+						"isAssignment": false,
+						"returnType": "IntegerExpression"
+					},
+					"transitions": [
+						{
+							"name": "toOn",
+							"transitionCondition": {
+								"expression": "",
+								"variables": [],
+								"returnType": "BooleanExpression",
+								"isAssignment": false
+							},
+							"transitionNewStateTypeRef": "On",
+							"transitionStateModifications": []
+						},
+						{
+							"name": "externalToOff",
+							"transitionCondition": {
+								"expression": "PortInFinishedByOther",
+								"variables": [
+									"PortInFinishedByOther"
+								],
+								"isAssignment": false,
+								"returnType": "IntegerExpression"
+							},
+							"transitionNewStateTypeRef": "Off",
+							"transitionStateModifications": []
+						}
+					],
+					"output": []
+				},
+				{
+					"stateTypeRef": "TransitionFinishedByItself",
+					"timeAdvanceExpression": {
+						"returnType": "IntegerExpression",
+						"variables": [],
+						"isAssignment": false,
+						"expression": "1"
+					},
+					"transitions": [
+						{
+							"name": "toFinishedByItself",
+							"transitionCondition": {
+								"expression": "",
+								"variables": [],
+								"returnType": "BooleanExpression",
+								"isAssignment": false
+							},
+							"transitionNewStateTypeRef": "FinishedByItself",
+							"transitionStateModifications": []
+						}
+					],
+					"output": []
+				},
+				{
+					"stateTypeRef": "FinishedByItself",
+					"timeAdvanceExpression": {
+						"returnType": "IntegerExpression",
+						"variables": [],
+						"isAssignment": false,
+						"expression": "Infinity"
+					},
+					"transitions": [],
+					"output": [
+						{
+							"port": "PortOutFinished",
+							"value": {
+								"expression": "MaxCycles",
+								"variables": [
+									"MaxCycles"
+								],
+								"isAssignment": false,
+								"returnType": "IntegerExpression"
+							}
+						}
+					]
+				},
+				{
+					"stateTypeRef": "FinishedByOther",
+					"timeAdvanceExpression": {
+						"returnType": "IntegerExpression",
+						"variables": [],
+						"isAssignment": false,
+						"expression": "Infinity"
+					},
+					"transitions": [],
+					"output": []
+				}
+			]
+		}
+	],
+	"coupledModels": [
+		{
+			"name": "CArena",
+			"ports": [
+				{
+					"name": "InArena",
+					"type": "InPort",
+					"valueType": "int"
+				},
+				{
+					"name": "OutArena",
+					"type": "OutPort",
+					"valueType": "int"
+				}
+			],
+			"models": [
+				{
+					"name": "bl1",
+					"isAtomicModel": true,
+					"modelRef": "BlinkingLightAtomicModelBR",
+					"modelOverrides": [
+						{
+							"name": "MaxCycles",
+							"type": "IntegerExpression",
+							"value": 5
+						},
+						{
+							"name": "WaitingTime",
+							"type": "IntegerExpression",
+							"value": 3
+						}
+					],
+					"initialState": "On"
+				},
+				{
+					"name": "bl2",
+					"isAtomicModel": true,
+					"modelRef": "BlinkingLightAtomicModelBR",
+					"modelOverrides": [
+						{
+							"name": "MaxCycles",
+							"type": "IntegerExpression",
+							"value": 20
+						},
+						{
+							"name": "WaitingTime",
+							"type": "IntegerExpression",
+							"value": 5
+						}
+					],
+					"initialState": "On"
+				}
+			],
+			"couplings": [
+				{
+					"sourceModel": "bl1",
+					"sourcePort": "PortOutFinished",
+					"targetModel": "bl2",
+					"targetPort": "PortInFinishedByOther",
+					"type": "IntegerExpression"
+				},
+				{
+					"sourceModel": "bl2",
+					"sourcePort": "PortOutFinished",
+					"targetModel": "bl1",
+					"targetPort": "PortInFinishedByOther",
+					"type": "IntegerExpression"
+				},
+				{
+					"sourceModel": "bl1",
+					"sourcePort": "PortOutFinished",
+					"targetModel": "this",
+					"targetPort": "OutArena",
+					"type": "IntegerExpression"
+				},
+				{
+					"sourceModel": "bl2",
+					"sourcePort": "PortOutFinished",
+					"targetModel": "this",
+					"targetPort": "OutArena",
+					"type": "IntegerExpression"
+				},
+				{
+					"sourceModel": "this",
+					"sourcePort": "InArena",
+					"targetModel": "bl1",
+					"targetPort": "PortInFinishedByOther",
+					"type": "IntegerExpression"
+				},
+				{
+					"sourceModel": "this",
+					"sourcePort": "InArena",
+					"targetModel": "bl2",
+					"targetPort": "PortInFinishedByOther",
+					"type": "IntegerExpression"
+				}
+			]
+		}
+	]
+}

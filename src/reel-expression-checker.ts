@@ -213,6 +213,26 @@ export class ReelExpressionChecker {
 			return;
 		}
 	}
+
+	static GetVariables(expr: Expression): Array<string> {
+		const result: Array<string> = [];
+		
+		if(isBinaryExpression(expr)){
+			result.push(...this.GetVariables(expr.left));
+			result.push(...this.GetVariables(expr.right));
+		}
+		if(isVariableReference(expr)){
+			let joinedVarName = expr.property.map(p => p.ref?.name ?? '').join('.');
+			result.push(joinedVarName)
+		}
+		
+		if(isPortReference(expr)){
+			result.push(expr.property?.ref?.name ?? '');
+		}
+		
+		
+		return result;
+	}
 }
 
 export interface Error {
