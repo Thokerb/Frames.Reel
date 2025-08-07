@@ -439,7 +439,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		//for all file imports of the current file
 		for (const fileImport of model.fileImports) {
 			//resolve the file name relatively to the current file
-			const filePath = this.pathJoin(currentDir.path, fileImport.file);
+			const filePath = this.pathJoin([currentDir.path, fileImport.file]);
 			//create back an URI
 			const uri = currentUri.with({ path: filePath });
 			//add the URI to URI list

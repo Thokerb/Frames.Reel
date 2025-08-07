@@ -8,3 +8,4 @@ src/language/generated/
 syntaxes/
 /dist/
 dist/
+/public/reel-server-worker.js
