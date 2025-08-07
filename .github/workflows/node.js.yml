@@ -31,6 +31,9 @@ jobs:
       - name: Build worker script
         run: npm run build:worker
 
+      - name: Build extension
+        run: npm run package
+
       - name: Generate tag and release name
         id: version
         run: |
@@ -52,6 +55,8 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
           body: "Manual release created by GitHub Actions."
-          files: ./public/reel-server-worker.js
+          files: |
+            ./public/reel-server-worker.js
+            ./Reel-0.0.1.vsix
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
