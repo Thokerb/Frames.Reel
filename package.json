@@ -16,6 +16,7 @@
         "langium:generate": "langium generate",
         "langium:generate:production": "langium generate --mode=production",
         "langium:watch": "langium generate --watch",
+        "build:worker": "esbuild --minify ./src/language/main-browser.js --bundle --format=iife --outfile=./public/reel-server-worker.js",
         "vscode:prepublish": "npm run build && npm run lint",
         "build:web": "npm run build",
         "bundle": "vite build",

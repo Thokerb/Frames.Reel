@@ -20,7 +20,6 @@ import {
 } from './language/generated/ast.js';
 import {ReelInference} from './reel-infer.js';
 import dirname = UriUtils.dirname;
-import path from "node:path";
 
 export class ReelScopeProvider extends DefaultScopeProvider {
 	override getScope(context: ReferenceInfo): Scope {
@@ -440,7 +439,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		//for all file imports of the current file
 		for (const fileImport of model.fileImports) {
 			//resolve the file name relatively to the current file
-			const filePath = path.join(currentDir.path, fileImport.file);
+			const filePath = this.pathJoin(currentDir.path, fileImport.file);
 			//create back an URI
 			const uri = currentUri.with({ path: filePath });
 			//add the URI to URI list
@@ -452,7 +451,11 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		//convert them to descriptions inside of a scope
 		return this.createScope([...astNodeDescriptions, ...astNodeDescriptions2]);
 	}
-
+	private pathJoin(parts: string[]){
+	var separator = '/';
+	var replace   = new RegExp(separator+'{1,}', 'g');
+	return parts.join(separator).replace(replace, separator);
+	}
 	private getImportedModelsFromCurrentFile(context: ReferenceInfo, modelType: 'AtomicShortModel' | 'CoupledModel'): Scope {
 		//get current document of reference
 		const document = AstUtils.getDocument(context.container);
