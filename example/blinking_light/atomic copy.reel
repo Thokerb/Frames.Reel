@@ -33,7 +33,7 @@ atomic model BlinkingLight {
 
     
 
-    state on
+    state on 
         time-advance: 2 TU
         becomes: "off"
         condition: engine.name == "tesla"

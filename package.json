@@ -1,11 +1,18 @@
 {
     "name": "Reel",
     "description": "Please enter a brief description here",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Thokerb/Frames.Reel"
+    },
+    "license": "GPL-3.0-only",
     "version": "0.0.1",
     "files": [
         "bin",
         "out",
-        "src"
+        "src",
+        "syntaxes",
+        "LICENSE.md"
     ],
     "type": "module",
     "scripts": {
@@ -17,6 +24,7 @@
         "langium:generate:production": "langium generate --mode=production",
         "langium:watch": "langium generate --watch",
         "build:worker": "esbuild --minify ./src/language/main-browser.js --bundle --format=iife --outfile=./public/reel-server-worker.js",
+        "esbuild-base": "esbuild ./src/extension/main.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node",
         "vscode:prepublish": "npm run build && npm run lint",
         "build:web": "npm run build",
         "bundle": "vite build",
@@ -25,7 +33,8 @@
         "dev:debug": "vite --debug --force",
         "serve": "npm run dev",
         "test": "vitest run",
-        "generate": "langium generate && npm run build"
+        "generate": "langium generate && npm run build",
+        "package": "vsce package"
     },
     "dependencies": {
         "langium": "~3.5.0",
@@ -37,10 +46,7 @@
         "@codingame/monaco-vscode-keybindings-service-override": "~3.2.3",
         "monaco-editor": "npm:@codingame/monaco-vscode-editor-api@~3.2.3",
         "monaco-editor-wrapper": "~4.0.2",
-        "monaco-languageclient": "~8.1.1",
-        "vscode": "npm:@codingame/monaco-vscode-api@~3.2.3",
-        "http-server": "~14.1.1",
-        "vite": "~5.2.7"
+        "monaco-languageclient": "~8.1.1"
     },
     "devDependencies": {
         "@types/node": "^18.0.0",
@@ -53,7 +59,10 @@
         "concurrently": "~8.2.1",
         "esbuild": "~0.20.2",
         "@codingame/esbuild-import-meta-url-plugin": "~1.0.2",
-        "vitest": "~1.4.0"
+        "vitest": "~1.4.0",
+        "vscode": "npm:@codingame/monaco-vscode-api@~3.2.3",
+        "http-server": "~14.1.1",
+        "vite": "~5.2.7"
     },
     "volta": {
         "node": "18.19.1",
