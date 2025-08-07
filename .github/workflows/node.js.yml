@@ -19,6 +19,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Build Grammar
+        run: npm run langium:generate:production
+
+      - name: Build DSL
+        run: npm run build
+        
       - name: Build worker script
         run: npm run build:worker
 
