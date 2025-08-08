@@ -66,9 +66,9 @@ function generateCoupledModelObject(model: CoupledModel): CoupledModelJson {
 export function generateJsonObjects(model: Model, otherModel: Array<Model>): ReelJson {
 
 
-	const importedAtomicModels: Array<AtomicShortModel> = [model, ...otherModel].map(model => model.fileImports.filter(x => x.modelImport.atomicModel !== undefined).map(x => x.modelImport.atomicModel!.ref!) ?? []).flat();
-	const importedCoupledModels: Array<CoupledModel> = [model, ...otherModel].map(model => model.fileImports.filter(x => x.modelImport.coupledModel !== undefined).map(x => x.modelImport.coupledModel!.ref!) ?? []).flat();
-	const importedStates: Array<State> = [model, ...otherModel].map(model => model.fileImports.filter(x => x.modelImport.atomicModel !== undefined).map(x => x.modelImport.atomicModel!.ref!.stateType.ref!) ?? []).flat();
+	const importedAtomicModels: Array<AtomicShortModel> = [model, ...otherModel].map(model => model?.fileImports.filter(x => x.modelImport.atomicModel !== undefined).map(x => x.modelImport.atomicModel!.ref!) ?? []).flat();
+	const importedCoupledModels: Array<CoupledModel> = [model, ...otherModel].map(model => model?.fileImports.filter(x => x.modelImport.coupledModel !== undefined).map(x => x.modelImport.coupledModel!.ref!) ?? []).flat();
+	const importedStates: Array<State> = [model, ...otherModel].map(model => model?.fileImports.filter(x => x.modelImport.atomicModel !== undefined).map(x => x.modelImport.atomicModel!.ref!.stateType.ref!) ?? []).flat();
 
 	const states: Array<State> = model.elements.filter(p => isState(p)) as Array<State>;
 	// Include imported states, but avoid duplicates
