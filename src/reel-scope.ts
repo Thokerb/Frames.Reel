@@ -4,15 +4,13 @@ import {
 import {
 	AtomicShortModel,
 	CoupledModel,
-	isAtomicModel, isAtomicShortModel, isCoupledModel, isCouplingDefinition,
+	isAtomicShortModel, isCoupledModel, isCouplingDefinition,
 	isExpression, isModelReference, isOBJECT,
 	isOBJECT_OVERRIDE,
 	isOutputMap, isPortReference,
-	isReceiveCase,
-	isReceiveCondition, isReceiveCondition2, isStateConfiguration,
+	isReceiveCondition2, isStateConfiguration,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
-	isTimeAdvanceCondition,
 	isVariableOverride,
 	isVariableReference, Model,
 	ObjectExpression, Port, PortType, ReelAstType,
@@ -50,16 +48,6 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			const previous = memberCall.ref;
 			if (!previous) {
 				return super.getScope(context);
-			}
-
-			// get the state type TODO
-			if (isAtomicModel(memberCall.$container.$container)) {
-				const stateType = memberCall.$container.$container.stateType;
-				if (stateType.ref === undefined) {
-					return super.getScope(context);
-				}
-
-				return this.scopeState(stateType.ref);
 			}
 
 			if (isAtomicShortModel(memberCall.$container.$container)) {
@@ -142,42 +130,6 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			return this.scopeObjectExpression(objectExpression);
 		}
 
-		if (isTimeAdvanceCondition(context.container)) {
-			const state = context.container;
-			if (state.$container.$container.stateType.ref === undefined) {
-				return super.getScope(context);
-			}
-
-			return this.createScopeForNodes((context.container.$container.$container.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
-				$type: x.$type,
-				$containerIndex: x.$containerIndex,
-				name: x.name,
-				$containerProperty: x.$containerProperty,
-				$container: x.$container,
-				$containerRef: x.$container,
-				$cstNode: x.$cstNode,
-				$document: x.$document,
-			}) ?? []));
-		}
-
-
-		if (isReceiveCase(context.container)) {
-			const state = ReelInference.getAtomicModel(context.container);
-			if (state?.stateType.ref === undefined) {
-				return super.getScope(context);
-			}
-			return this.createScopeForNodes((state.stateType.ref?.stateType?.StateName.map(x => <AstNode>{
-				$type: x.$type,
-				$containerIndex: x.$containerIndex,
-				name: x.name,
-				$containerProperty: x.$containerProperty,
-				$container: x.$container,
-				$containerRef: x.$container,
-				$cstNode: x.$cstNode,
-				$document: x.$document,
-			}) ?? []));
-		}
-
 		if (isReceiveCondition2(context.container)) {
 			const state = ReelInference.getAtomicModel(context.container);
 			if (state === undefined) {
@@ -190,22 +142,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				} as AstNode;
 			}) ?? []);
 		}
-
-		if (isReceiveCondition(context.container)) {
-
-			const state = ReelInference.getAtomicModel(context.container);
-			if (state === undefined) {
-				return super.getScope(context);
-			}
-			return this.createScopeForNodes(state?.ports?.ports?.filter(x => x.type === 'InPort').map(x => {
-				return {
-					...x,
-					$type: x.valueType
-				} as AstNode;
-			}) ?? []);
-
-		}
-
+		
 		if (isOutputMap(context.container)) {
 			const state = ReelInference.getAtomicModel(context.container.$container);
 			if (state === undefined) {

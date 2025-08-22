@@ -6,7 +6,6 @@ import {
 	OBJECT,
 	OBJECT_OVERRIDE,
 	ObjectExpression,
-	OutputCase,
 	OutputMap,
 	type ReelAstType,
 	State,
@@ -42,7 +41,6 @@ export function registerValidationChecks(services: ReelServices) {
 		ObjectExpression: validator.checkUniqueParamsObjectExpression,
 		Expression: validator.binaryExpressionCheck,
 		OutputMap: validator.outputMapCheck,
-		OutputCase: validator.outputCaseCheck,
 		TimeAdvanceStateConfiguration: validator.timeAdvanceCaseCheck,
 		ReceiveCondition2: validator.receiveCondition2Check,
 		StateDefinitionOverridesWithBecome: validator.stateDefinitionOverridesWithBecomeCheck,
@@ -139,21 +137,6 @@ export class ReelValidator {
 				accept('error', `Param ${p.name} is non-unique for Def '${p.name}'`, {node: p, property: 'name'});
 			}
 			reported.add(p.name);
-		});
-	}
-
-	outputCaseCheck(def: OutputCase, accept: ValidationAcceptor): void {
-		const reported = new Set();
-		def.output.forEach((p: OutputMap) => {
-			if (p.portRef.ref?.name && reported.has(p.portRef.ref?.name)) {
-				accept('error', `Param ${p.portRef.ref?.name} is non-unique for Def '${p.portRef.ref?.name}'`, {
-					node: p,
-					property: 'portRef'
-				});
-			}
-			if (p.portRef.ref?.name) {
-				reported.add(p.portRef.ref?.name);
-			}
 		});
 	}
 

@@ -1,20 +1,19 @@
 ﻿import {
-	AtomicModel, AtomicShortModel,
+	AtomicShortModel,
 	BinaryExpression,
-	isAtomicModel, isAtomicShortModel,
+	isAtomicShortModel,
 	isBinaryExpression, isModelReference,
-	isObjectExpression, isOutputCase, isOutputMap, isReceiveCase, isReceiveCondition, isReceiveCondition2,
+	isObjectExpression, isOutputMap, isReceiveCondition2,
 	isState, isStateConfiguration,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
-	isTimeAdvanceCase,
-	isTimeAdvanceCondition, isTimeAdvanceStateConfiguration,
+	isTimeAdvanceStateConfiguration,
 	OBJECT_OVERRIDE,
-	ObjectExpression, OutputCase, OutputMap, ReceiveCase, ReceiveCondition, ReceiveCondition2,
+	ObjectExpression,  OutputMap, ReceiveCondition2,
 	State,
 	StateConfiguration,
 	StateDefinitionOverrides,
-	StateDefinitionOverridesWithBecome, TimeAdvanceCase, TimeAdvanceCondition, TimeAdvanceStateConfiguration,
+	StateDefinitionOverridesWithBecome, TimeAdvanceStateConfiguration,
 	Variable,
 	VariableReference
 } from "./language/generated/ast.js";
@@ -84,18 +83,6 @@ export class ReelInference{
 			}
 		}
 		
-		if(isTimeAdvanceCase(current)){
-			return current.$container.stateType.ref;
-		}
-		if(isTimeAdvanceCondition(current)){
-			return current.$container.$container.stateType.ref;
-		}
-		
-		
-		if(isReceiveCondition(current)){
-			return ReelInference.getAtomicModel(current.$container.$container)?.stateType.ref;
-		}
-		
 		return ReelInference.getAtomicModel(current)?.stateType.ref;
 	}
 
@@ -130,7 +117,7 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | ReceiveCondition | ReceiveCase | OutputMap | OutputCase | TimeAdvanceStateConfiguration | TimeAdvanceCase | TimeAdvanceCondition | ReceiveCondition2 | StateConfiguration): AtomicModel | AtomicShortModel | undefined {
+	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | OutputMap | TimeAdvanceStateConfiguration | ReceiveCondition2 | StateConfiguration): AtomicShortModel | undefined {
 
 		
 		if(isStateDefinitionOverrides(container)) {
@@ -145,11 +132,6 @@ export class ReelInference{
 						}
 					}
 					break;
-				case "AtomicModel":
-					if(isAtomicModel(container.$container)) {
-						return container.$container;
-					}
-					break;
 				case "AtomicShortModel":
 					if(isAtomicShortModel(container.$container)) {
 						return container.$container;
@@ -160,23 +142,12 @@ export class ReelInference{
 
 		}
 		
-		if(isReceiveCase(container)) {
-			return container.$container;
-		}
-
 		if(isTimeAdvanceStateConfiguration(container)){
 			return container.$container.$container;
 		}
-		
-		if(isReceiveCondition(container)){
-			return container.$container.$container.$container;
-		}
-		if(isOutputCase(container)){
-			return container.$container;
-		}
-
+	
 		if(isStateDefinitionOverridesWithBecome(container)){
-			return isAtomicModel(container.$container.$container) ? container.$container.$container : container.$container.$container.$container;
+			return container.$container.$container.$container;
 		}
 		
 		if(isOutputMap(container)){
@@ -191,13 +162,6 @@ export class ReelInference{
 			return container.$container;
 		}
 		
-		if(isTimeAdvanceCase(container)){
-			return container.$container;
-		}
-		
-		if(isTimeAdvanceCondition(container)){
-			return container.$container.$container;
-		}
 		
 		if(isBinaryExpression(container)){
 			const topExpression = ReelExpressionChecker.GetTopExpression(container);

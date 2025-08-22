@@ -74,39 +74,9 @@ TimeAdvanceStateConfiguration:
     'time-advance' ':' timeAdvance=Expression 'TimeUnits'
 ;
 
-AtomicModel:
-    'atomic' 'model' name=ID '{'  
-         ('state' ':' stateType=[State]  definitionOverrides=StateDefinitionOverrides? )
-         (ports=PortConfiguration)?
-        ('section' 'TimeAdvance' '{' 
-            (timeAdvanceCases+=TimeAdvanceCase)*
-        '}')?
-        ('section' 'internalTransition' '{'
-            (internalTransitionCases+=InternalTransitionCase)*
-        '}')
-        ('section' 'externalTransition' '{'
-            (receiveCase+=ReceiveCase)*
-        '}')?
-        ('section' 'Output' '{'
-            (outputCases+=OutputCase)*
-        '}')
-    '}'
-;
-
 
 PortType returns string:
     'InPort' | 'OutPort'
-;
-
-
-ReceiveCase:
-    'state''.''name' 'is' stateRef=[StateName]'{'
-        (receive += ReceiveConditionWithOverride)*
-    '}'
-;
-
-ReceiveConditionWithOverride:
-    (condition=ReceiveCondition '=>' overrides=StateDefinitionOverridesWithBecome )
 ;
 
 
@@ -114,52 +84,17 @@ ReceiveConditionWithOverride2:
     (condition=ReceiveCondition2 '=>' overrides=StateDefinitionOverridesWithBecome )
 ;
 
-ReceiveCondition:
-    'receive' (( portRef+=[Port:ID] (',' portRef+=[Port:ID])*)) ('with' expression=Expression )?
-;
-
 ReceiveCondition2:
     '('name=ID')' ('with' expression=Expression )?
 ;
-
-
-InternalTransitionCase:
-    'condition''('(name=ID)?')' ':' condition=TimeAdvanceCondition '=>' overrides=StateDefinitionOverridesWithBecome
-;
-
 
 Port:
     valueType=('string'|'int'|'bool'|OBJECT) type=PortType  name=ID ';'
 ;
 
-
-
-OutputCase:
-    condition=TimeAdvanceCondition '=>' '{'
-        (output += OutputMap)*
-    '}'
-;
-
 OutputMap:
     portRef=[Port:ID] ':' expression=Expression ';'
 ;
-
-TimeAdvanceCase:
-    (
-        (condition=TimeAdvanceCondition '=>' timeAdvance=Expression 'TimeUnits') |
-        ('default' '=>' defaultTimeAdvance=Expression 'TimeUnits')
-    )
-    ';'
-;
-
-
-
-
-TimeAdvanceCondition:
-    'state''.''name' 'is' stateRef=[StateName] ('with' expression=Expression )?
-;
-
-
 
 
 StateDefinitionOverrides:

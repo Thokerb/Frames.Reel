@@ -2,7 +2,7 @@ import {MaybePromise} from "langium";
 import {CompletionAcceptor, CompletionContext, DefaultCompletionProvider, NextFeature} from "langium/lsp";
 import {CompletionItemKind} from "vscode-languageserver";
 import {
-	isAtomicModel, isOBJECT_OVERRIDE,
+	isOBJECT_OVERRIDE,
 	isStateDefinitionOverrides,
 	isVariableOverride, isVariableReference,
 } from "./language/generated/ast.js";
@@ -52,21 +52,6 @@ export class ReelCompletionProvider extends DefaultCompletionProvider {
 			// log type
 			// console.log("type: ", model?.$type);
 
-			if (isAtomicModel(model)) {
-
-				// get the corresponding State
-				const props = model.stateType.ref?.properties;
-
-				// for each property of the state, create a completion item
-				for (const property of props ?? []) {
-					acceptor(context, {
-						label: property.name,
-						detail: property.$type,
-						kind: CompletionItemKind.Field,
-					});
-				}
-				return;
-			}
 			if (isStateDefinitionOverrides(model)) {
 				// get the corresponding State
 				const props = model.$container.stateType?.ref?.properties;
