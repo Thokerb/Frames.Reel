@@ -1,5 +1,5 @@
 import type { LanguageClientOptions, ServerOptions} from 'vscode-languageclient/node.js';
-import type * as vscode from 'vscode';
+import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node.js';
 
@@ -29,12 +29,12 @@ function startLanguageClient(context: vscode.ExtensionContext): LanguageClient {
     // Otherwise the run options are used
     const serverOptions: ServerOptions = {
         run: { module: serverModule, transport: TransportKind.ipc },
-        debug: { module: serverModule, transport: TransportKind.ipc, options: debugOptions }
+        debug: { module: serverModule, transport: TransportKind.ipc, options: debugOptions },
     };
 
     // Options to control the language client
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: '*', language: 'reel' }]
+        documentSelector: [{ scheme: '*', language: 'reel' }],
     };
 
     // Create the language client and start the client.
@@ -45,7 +45,34 @@ function startLanguageClient(context: vscode.ExtensionContext): LanguageClient {
         clientOptions
     );
 
+
     // Start the client. This will also launch the server
     client.start();
+
+    // Register the JSON generation command on the client side
+    context.subscriptions.push(vscode.commands.registerCommand('reel.generateJSONEXT', async (uri: vscode.Uri) => {
+        
+        console.log("extension got result");
+
+        if (!uri) {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                vscode.window.showErrorMessage('No active editor found.');
+                return;
+            }
+            uri = editor.document.uri;
+        }
+
+        const result = await client.sendRequest('workspace/executeCommand', {
+            command: 'reel.generateJSON',
+            arguments: [uri]
+        });
+
+
+        // Output or handle the result JSON
+        const doc = await vscode.workspace.openTextDocument( {  language: 'json',content: JSON.stringify(JSON.parse(result as string),null,2), });
+        vscode.window.showTextDocument(doc);
+    }));
+
     return client;
 }

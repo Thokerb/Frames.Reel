@@ -1,0 +1,30 @@
+﻿import atomic BlinkingLightAtomicModelBR from './blinking_light.reel'
+
+export coupled model CArena {
+
+    section Ports {
+        int InPort InArena;
+        int OutPort OutArena;
+    }
+
+    BlinkingLightAtomicModelBR bl1 with BlinkingLightStateBR {
+        initial = On;
+        MaxCycles = 5;
+        WaitingTime = 3;
+    }
+
+    BlinkingLightAtomicModelBR bl2 with BlinkingLightStateBR {
+        initial = On;
+        MaxCycles = 20;
+        WaitingTime = 5;
+    }
+
+    Connect bl1.PortOutFinished to bl2.PortInFinishedByOther
+    Connect bl2.PortOutFinished to bl1.PortInFinishedByOther
+
+    Connect bl1.PortOutFinished to this.OutArena
+    Connect bl2.PortOutFinished to this.OutArena
+
+    Connect this.InArena to bl1.PortInFinishedByOther
+    Connect this.InArena to bl2.PortInFinishedByOther
+}

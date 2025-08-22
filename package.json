@@ -94,6 +94,12 @@
                 "scopeName": "source.reel",
                 "path": "syntaxes/reel.tmLanguage.json"
             }
+        ],
+        "commands": [
+            {
+            "command": "reel.generateJSONEXT",
+            "title": "Generate JSON from Reel Model"
+            }
         ]
     },
     "activationEvents": [
