@@ -9,6 +9,10 @@
         },
         "monarch": {
             "out": "src/syntaxes/reel.monarch.ts"
+        },
+        "railroad": {
+            "out": "docs/",
+            "mode": "svg"
         }
     }],
     "out": "src/language/generated"

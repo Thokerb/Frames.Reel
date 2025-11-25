@@ -1,0 +1,94 @@
+<svg class="railroad-diagram" xmlns="http://www.w3.org/2000/svg" width="449" height="72" viewBox="0 0 449 72">
+<style>
+    svg.railroad-diagram {
+        background-color: hsl(30,20%,95%);
+    }
+    svg.railroad-diagram path {
+        stroke-width: 3;
+        stroke: black;
+        fill: rgba(0,0,0,0);
+    }
+    svg.railroad-diagram text {
+        font: bold 14px monospace;
+        text-anchor: middle;
+    }
+    svg.railroad-diagram text.label {
+        text-anchor: start;
+    }
+    svg.railroad-diagram text.comment {
+        font: italic 12px monospace;
+    }
+    svg.railroad-diagram rect {
+        stroke-width: 3;
+        stroke: black;
+        fill: hsl(120,100%,90%);
+    }
+</style>
+<g transform="translate(.5 .5)">
+<path d="M 20 31 v 20 m 10 -20 v 20 m -10 -10 h 20.5"></path>
+<g>
+<path d="M40 41h0"></path>
+<path d="M408 41h0"></path>
+<path d="M40 41h10"></path>
+<g>
+<path d="M50 41h0"></path>
+<path d="M118 41h0"></path>
+<rect x="50" y="30" width="68" height="22" rx="10" ry="10"></rect>
+<text x="84" y="45">string</text>
+</g>
+<path d="M118 41h10"></path>
+<path d="M128 41h10"></path>
+<g>
+<path d="M138 41h0"></path>
+<path d="M174 41h0"></path>
+<rect x="138" y="30" width="36" height="22"></rect>
+<text x="156" y="45">ID</text>
+</g>
+<path d="M174 41h10"></path>
+<g>
+<path d="M184 41h0"></path>
+<path d="M360 41h0"></path>
+<path d="M184 41a10 10 0 0 0 10 -10v0a10 10 0 0 1 10 -10"></path>
+<g>
+<path d="M204 21h136"></path>
+</g>
+<path d="M340 21a10 10 0 0 1 10 10v0a10 10 0 0 0 10 10"></path>
+<path d="M184 41h20"></path>
+<g>
+<path d="M204 41h0"></path>
+<path d="M340 41h0"></path>
+<g>
+<path d="M204 41h0"></path>
+<path d="M340 41h0"></path>
+<path d="M204 41h10"></path>
+<g>
+<path d="M214 41h0"></path>
+<path d="M242 41h0"></path>
+<rect x="214" y="30" width="28" height="22" rx="10" ry="10"></rect>
+<text x="228" y="45">=</text>
+</g>
+<path d="M242 41h10"></path>
+<path d="M252 41h10"></path>
+<g>
+<path d="M262 41h0"></path>
+<path d="M330 41h0"></path>
+<rect x="262" y="30" width="68" height="22"></rect>
+<text x="296" y="45">STRING</text>
+</g>
+<path d="M330 41h10"></path>
+</g>
+</g>
+<path d="M340 41h20"></path>
+</g>
+<path d="M360 41h10"></path>
+<g>
+<path d="M370 41h0"></path>
+<path d="M398 41h0"></path>
+<rect x="370" y="30" width="28" height="22" rx="10" ry="10"></rect>
+<text x="384" y="45">;</text>
+</g>
+<path d="M398 41h10"></path>
+</g>
+<path d="M 408 41 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
+</g>
+</svg>

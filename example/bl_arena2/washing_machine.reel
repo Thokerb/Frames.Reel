@@ -1,0 +1,117 @@
+state BlinkingLightState {
+    states: [On | Off | Disabled];
+    initial = On;
+    int MaxCycles = 10;
+    int CurrentCycle = 0;
+    int WaitingTime = 2;
+}
+
+atomic2 model BlinkingLightAtomicModel {
+    state: BlinkingLightState {
+        initial = On;
+        MaxCycles = 10;
+        CurrentCycle = 0;
+        WaitingTime = 2;
+    }
+
+    section Ports {
+        int InPort PortInDisable;
+        int OutPort PortOutTurningOff;
+        int OutPort PortOutTurningOn;
+    }
+
+    stateDefinition On: {
+        time-advance: WaitingTime TimeUnits
+        transitions: {
+            (toOff) => {
+                state.name becomes Off;
+                CurrentCycle = CurrentCycle + 1;
+            }
+            (toDisabled) with InPort PortInDisable.any => {
+                state.name becomes Disabled;
+            }
+        }
+        output: {
+            PortOutTurningOff: CurrentCycle;
+        }
+    }
+
+    stateDefinition Off: {
+        time-advance: WaitingTime TimeUnits
+        transitions: {
+            (toOn) => {
+                state.name becomes On;
+            }
+            (toDisabled) with InPort PortInDisable.any => {
+                state.name becomes Disabled;
+            }
+        }
+        output: {
+            PortOutTurningOn: CurrentCycle;
+        }
+    }
+
+    stateDefinition Disabled: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {}
+    }
+}
+
+state MachineState {
+    states: [On | Off];
+    initial = On;
+}
+
+atomic2 model MachineAtomicModel {
+    state: MachineState {
+        initial = On;
+    }
+
+    section Ports {
+        int OutPort PortOutFinished;
+        int InPort PortInFinishedByOther;
+    }
+
+    stateDefinition On: {
+        time-advance: 20 TimeUnits
+        transitions: {
+            (toOff) => {
+                state.name becomes Off;
+            }
+        }
+        output: {
+            PortOutFinished: 1;
+        }
+    }
+
+    stateDefinition Off: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {}
+    }
+}
+
+coupled model WashingMachineSystem {
+
+    section Ports {
+        int InPort InSystem;
+        int OutPort OutSystem;
+    }
+
+    MachineAtomicModel machine with MachineState {
+        initial = On;
+    }
+
+    BlinkingLightAtomicModel light with BlinkingLightState {
+        initial = On;
+        MaxCycles = 10;
+        WaitingTime = 2;
+    }
+
+    Connect machine.PortOutFinished to light.PortInDisable
+    Connect light.PortOutTurningOff to machine.PortInFinishedByOther
+
+    Connect light.PortOutTurningOff to this.OutSystem
+    Connect this.InSystem to light.PortInDisable
+}
