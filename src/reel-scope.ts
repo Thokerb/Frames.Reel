@@ -5,10 +5,10 @@ import {
 	AtomicShortModel,
 	CoupledModel,
 	isAtomicShortModel, isCoupledModel, isCouplingDefinition,
-	isExpression, isModelReference, isOBJECT,
+	isExpression, isMapEntry, isModelReference, isOBJECT,
 	isOBJECT_OVERRIDE,
 	isOutputMap, isPortReference,
-	isReceiveCondition2, isStateConfiguration,
+	isReceiveCondition, isStateConfiguration,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isVariableOverride,
@@ -94,6 +94,28 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 
 			// return this.scopeState(state);
 		}
+		
+		
+		if(isMapEntry(context.container)){
+			const mapEntry = context.container;
+			const state = ReelInference.getAtomicModel(mapEntry.$container.$container);
+			if (state === undefined) {
+				return super.getScope(context);
+			}
+			const port = mapEntry.$container.$container.portRef.ref;
+			
+			if(port === undefined) {
+				return super.getScope(context);
+			}
+			
+			if(!isOBJECT(port.valueType)){
+				// should not happen
+				return super.getScope(context);
+			}
+			
+			
+			return this.createScopeForNodes(port.valueType.properties);
+		}
 
 		if (isVariableReference(context.container)) {
 			const variable = context.container;
@@ -130,7 +152,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			return this.scopeObjectExpression(objectExpression);
 		}
 
-		if (isReceiveCondition2(context.container)) {
+		if (isReceiveCondition(context.container)) {
 			const state = ReelInference.getAtomicModel(context.container);
 			if (state === undefined) {
 				return super.getScope(context);
@@ -291,7 +313,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				$type: property.$type,
 				name: property.name,
 				$container: property,
-				$containerRef: property.value,
+				$containerRef: property.$container,
 				$containerType: property.$type,
 				$containerIndex: property.$containerIndex,
 				$containerProperty: property.$containerProperty,

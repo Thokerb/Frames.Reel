@@ -14,13 +14,13 @@ import {
 	PortReference,
 	isPortReference,
 	TimeAdvanceStateConfiguration,
-	ReceiveCondition2,
+	ReceiveCondition,
 	StateDefinitionOverridesWithBecome,
 	PortConfiguration,
 	Port,
 	Properties,
 	PropertiesOverride,
-	isReceiveConditionWithOverride2,
+	isReceiveConditionWithOverride,
 	CouplingDefinition, isOBJECT
 } from './generated/ast.js';
 import type {ReelServices} from './reel-module.js';
@@ -42,7 +42,7 @@ export function registerValidationChecks(services: ReelServices) {
 		Expression: validator.binaryExpressionCheck,
 		OutputMap: validator.outputMapCheck,
 		TimeAdvanceStateConfiguration: validator.timeAdvanceCaseCheck,
-		ReceiveCondition2: validator.receiveCondition2Check,
+		ReceiveCondition: validator.ReceiveConditionCheck,
 		StateDefinitionOverridesWithBecome: validator.stateDefinitionOverridesWithBecomeCheck,
 		PortConfiguration: validator.portConfigurationCheck,
 		CouplingDefinition: validator.couplingDefinitionCheck,
@@ -145,6 +145,51 @@ export class ReelValidator {
 		if (port === undefined) {
 			return;
 		}
+		
+		if(isOBJECT(port.valueType)){
+			
+			def.expressionMap?.mapEntries.map((entry) => {
+				if(entry.value === undefined){
+					return;
+				}
+
+				let rightSide = ReelExpressionChecker.CheckType(entry.value, "OutPort");
+				if (rightSide === 'unknown') {
+					accept('error', `Type '${rightType}' is not assignable to type '${port.$type}'.`, {
+						node: entry,
+						property: 'value'
+					});
+					return;
+				}
+				if (ReelExpressionChecker.isError(rightSide)) {
+					accept('error', `Type '${rightSide.error}''.`, {
+						node: rightSide.node,
+						property: rightSide.property
+					});
+					return;
+				}
+				
+				const key = entry.key.$refText;
+				
+				const portProp = (port.valueType as OBJECT).properties.find(p => p.name === key);
+				if(portProp === undefined){
+					accept('error', `Property '${key}' does not exist on type '${port.$type}'.`, {
+						node: def,
+						property: "expression"
+					});
+					return;
+				}
+				if(portProp.$type !== rightSide){
+					accept('error', `Type '${rightSide}' is not assignable to type '${portProp.$type}'.`, {
+						node: entry
+					});
+					return;
+				}
+				
+			})
+			return;
+		}
+		
 		const rightType = ReelExpressionChecker.CheckType(def.expression);
 		if (rightType === 'unknown') {
 			accept('error', `Type '${rightType}' is not assignable to type '${port.$type}'.`, {
@@ -154,7 +199,7 @@ export class ReelValidator {
 			return;
 		}
 		if (ReelExpressionChecker.isError(rightType)) {
-			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType.node}'.`, {
+			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType?.node}'.`, {
 				node: rightType.node,
 				property: rightType.property
 			});
@@ -464,7 +509,7 @@ export class ReelValidator {
 		});
 
 		// set allowed Inports, whic are only these checked in the expression
-		if (isReceiveConditionWithOverride2(condition.$container)) {
+		if (isReceiveConditionWithOverride(condition.$container)) {
 			const ports: Array<PortReference> | undefined = ReelExpressionChecker.GetUsedPorts(condition.$container.condition.expression)
 			condition.properties.forEach(prop => {
 				ReelExpressionChecker.AllowedPortTypes(prop, ports, accept);
@@ -475,7 +520,7 @@ export class ReelValidator {
 	}
 
 
-	receiveCondition2Check(condition: ReceiveCondition2, accept: ValidationAcceptor) {
+	ReceiveConditionCheck(condition: ReceiveCondition, accept: ValidationAcceptor) {
 
 		const expression = condition.expression;
 		if (expression === undefined) {

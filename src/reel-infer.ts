@@ -2,14 +2,14 @@
 	AtomicShortModel,
 	BinaryExpression,
 	isAtomicShortModel,
-	isBinaryExpression, isModelReference,
-	isObjectExpression, isOutputMap, isReceiveCondition2,
+	isBinaryExpression, isMapEntry, isModelReference,
+	isObjectExpression, isOutputMap, isReceiveCondition,
 	isState, isStateConfiguration,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
-	isTimeAdvanceStateConfiguration,
+	isTimeAdvanceStateConfiguration, MapEntry,
 	OBJECT_OVERRIDE,
-	ObjectExpression,  OutputMap, ReceiveCondition2,
+	ObjectExpression, OutputMap, ReceiveCondition,
 	State,
 	StateConfiguration,
 	StateDefinitionOverrides,
@@ -56,7 +56,7 @@ export class ReelInference{
 		let path: Array<string> = [];
 		let current: StateDefinitionOverrides | OBJECT_OVERRIDE = model;
 
-		while (!isStateDefinitionOverrides(current)) {
+		while (!isStateDefinitionOverrides(current) && current.$container.$type === "VariableOverride") {
 			path.push(current.$container.ref.$nodeDescription?.name ?? '');
 			current = current.$container.$container;
 		}
@@ -117,8 +117,11 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | OutputMap | TimeAdvanceStateConfiguration | ReceiveCondition2 | StateConfiguration): AtomicShortModel | undefined {
+	public static getAtomicModel(container:  MapEntry | StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | OutputMap | TimeAdvanceStateConfiguration | ReceiveCondition | StateConfiguration): AtomicShortModel | undefined {
 
+		if(isMapEntry(container)){
+			return this.getAtomicModel(container.$container.$container);
+		}
 		
 		if(isStateDefinitionOverrides(container)) {
 			switch (container.$container.$type) {
@@ -154,7 +157,7 @@ export class ReelInference{
 			return container.$container.$container;
 		}
 
-		if(isReceiveCondition2(container)){
+		if(isReceiveCondition(container)){
 			return container.$container.$container.$container;
 		}
 		

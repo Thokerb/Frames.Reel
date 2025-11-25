@@ -7,16 +7,25 @@
 	PortReference, PortType, type Variable
 } from "./language/generated/ast.js";
 import type {Reference, ValidationAcceptor} from "langium";
+import {ExpressionValueType} from "./code-generation/json/reel-json-generate.js";
 
 export class ReelExpressionChecker {
 
 
-	static inferType(node: Reference<Variable>):  "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" {
+	static inferType(node: Reference<Variable>): ExpressionValueType | "unknown" {
 		return node.ref?.$type ?? 'unknown';
 	}
 	
-	public static CheckType(node: Expression | PortReference, illegalPortType?: PortType): "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" | Error {
+	public static CheckType(node?: Expression | PortReference, illegalPortType?: PortType): ExpressionValueType | "unknown" | Error {
 
+		if(node === undefined) {
+			return <Error>{
+				error: `Expression is undefined.`,
+				node: node as any,
+				property: 'left'
+			}
+		}
+		
 		if(isPortReference(node)) {
 			
 			if(illegalPortType && node.property?.ref?.type === illegalPortType) {
@@ -76,7 +85,7 @@ export class ReelExpressionChecker {
 		return "StringExpression";
 	}
 
-	public static  checkBinary(node: BinaryExpression, illegalPortType?: PortType): Error | "BooleanExpression" | "ObjectExpression" | "IntegerExpression" | "StringExpression" | "unknown" {
+	public static  checkBinary(node: BinaryExpression, illegalPortType?: PortType): Error | ExpressionValueType | "unknown" {
 
 		let leftType = this.CheckType(node.left, illegalPortType);
 

@@ -1,9 +1,26 @@
 ﻿import {
-	AtomicShortModel, CoupledModel, Expression, isAtomicShortModel, isCoupledModel, isOBJECT, isOBJECT_OVERRIDE,
-	isObjectExpression, isPortReference,
-	isState, isVariableOverride, isVariableReference,
-	Model, ModelReference, OBJECT, PropertiesOverride, ReceiveConditionWithOverride2,
-	State, StateConfiguration, Variable, VariableOverride, VariableReference
+	ArrayExpression,
+	AtomicShortModel,
+	CoupledModel,
+	Expression,
+	ExpressionMap,
+	isAtomicShortModel,
+	isCoupledModel,
+	isOBJECT,
+	isOBJECT_OVERRIDE,
+	isPortReference,
+	isState,
+	isVariableReference,
+	Model,
+	ModelReference,
+	OBJECT,
+	PropertiesOverride,
+	ReceiveConditionWithOverride,
+	State,
+	StateConfiguration,
+	Variable,
+	VariableOverride,
+	VariableReference
 } from "../../language/generated/ast.js";
 import {ReelExpressionChecker} from "../../reel-expression-checker.js";
 import {
@@ -11,7 +28,7 @@ import {
 	ExpressionJson, ModelReferenceJson,
 	PortObjectMap, ReelJson,
 	StateConfigurationJson, StateJson,
-	StatePropertyJson,
+	StatePropertyJson, StatePropValueType,
 	TransitionJson
 } from "./json-types.js";
 
@@ -106,6 +123,17 @@ export function generateJsonObjects(model: Model, otherModel: Array<Model>): Ree
 }
 
 
+function GetValues(arrayValues: ArrayExpression):  boolean[] | number[] | string[] {
+	switch (arrayValues.type) {
+		case "bool":
+			return arrayValues.BoolElements;
+		case "int":
+			return arrayValues.IntElements;
+		case "string":
+			return arrayValues.stringElements;
+
+	}
+}
 
 
 function flattenStateProperties(
@@ -116,43 +144,84 @@ function flattenStateProperties(
 
 	properties.forEach(prop => {
 
-		const varName = isVariableOverride(prop) ? prop.ref.ref?.name ?? '' : prop.name;
-		
+		// const varName = isVariableOverride(prop) ? prop.ref.ref?.name ?? '' : prop.name;
+		// const name = [...parentPath, varName].join('.');
 
 
-		if (isObjectExpression(prop)) {
-			result.push(...flattenStateProperties(prop.value.properties, [...parentPath, varName]));
-		} else {
-			if (isOBJECT_OVERRIDE(prop.value) && isVariableOverride(prop)) {
-				result.push(...flattenStateProperties(prop.value.properties, [...parentPath, varName]))
-			} else {
-				
-				if(!isOBJECT(prop.value) && !isOBJECT_OVERRIDE(prop.value)) {
-					
-					let t: "ObjectExpression" | "BooleanExpression" | "IntegerExpression"  | "StringExpression" | undefined = isVariableOverride(prop)  ? prop.ref.ref?.$type : prop.$type;
-					if(t === "ObjectExpression" || t === undefined) {
-						throw new Error("ObjectExpression is not supported in this context");
+		switch (prop.$type) {
+			case "BooleanExpression":
+			case "IntegerExpression":
+			case "StringExpression":{
+				const name = [...parentPath, prop.name].join('.');
+				result.push(
+					{
+						name: name,
+						type: prop.$type,
+						value: prop.value
 					}
-					const name = [...parentPath, varName].join('.');
-
-					result.push(
-						{
-							name: name,
-							type: t,
-							value: prop.value
-						}
-					);
-				}
-				
-
+				);
 			}
+				break;
+			case "ArrayExpression":{
+				const name = [...parentPath, prop.name].join('.');
+				result.push(
+					{
+						name: name,
+						type: MapArrayType(prop.type),
+						isArray: true,
+						value: GetValues(prop)
+					}
+				);
+			}
+				break;
+			case "ObjectExpression":
+				result.push(...flattenStateProperties(prop.value.properties, [...parentPath, prop.name]));
+				break;
+			case "VariableOverride":{
+				if (isOBJECT_OVERRIDE(prop.value) ) {
+					result.push(...flattenStateProperties(prop.value.properties, [...parentPath, prop.ref.ref!.name]));
+				} else {
+					// TODO check
+					result.push(...flattenStateProperties([prop.ref.ref!], [...parentPath]));
+				}
+			}
+			break;
 		}
+		
+		
+		// if (isObjectExpression(prop)) {
+		// 	result.push(...flattenStateProperties(prop.value.properties, [...parentPath, varName]));
+		// } else {
+		// 	if (isVariableOverride(prop) && isOBJECT_OVERRIDE(prop.value) ) {
+		// 		result.push(...flattenStateProperties(prop.value.properties, [...parentPath, varName]))
+		// 	} else {
+		//		
+		// 		if(!isOBJECT(prop.value) && !isOBJECT_OVERRIDE(prop.value)) {
+		//			
+		// 			let t: "ObjectExpression" | "BooleanExpression" | "IntegerExpression"  | "StringExpression" | undefined = isVariableOverride(prop)  ? prop.ref.ref?.$type : prop.$type;
+		// 			if(t === "ObjectExpression" || t === undefined) {
+		// 				throw new Error("ObjectExpression is not supported in this context");
+		// 			}
+		// 			const name = [...parentPath, varName].join('.');
+		//
+		// 			result.push(
+		// 				{
+		// 					name: name,
+		// 					type: t,
+		// 					value: prop.value
+		// 				}
+		// 			);
+		// 		}
+		//		
+		//
+		// 	}
+		// }
 	});
 
 	return result;
 }
 
-export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression';
+export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression' | 'ArrayExpression';
 
 
 
@@ -183,6 +252,22 @@ function MapPortType(valueType: "bool" | "int" | "string" | OBJECT | undefined):
 			return 'ObjectExpression'; // For OBJECT or any other type, default to ObjectExpression
 	}
 }
+
+function MapArrayType(valueType: "bool" | "int" | "string" ): StatePropValueType {
+	if (valueType === undefined) {
+		throw new Error("Value type is undefined");
+	}
+
+	switch (valueType) {
+		case "bool":
+			return "BooleanExpression";
+		case "int":
+			return "IntegerExpression";
+		case "string":
+			return "StringExpression";
+	}
+}
+
 
 function ToExpressionJson(expr: Expression): ExpressionJson {
 
@@ -219,7 +304,7 @@ function ToExpressionJson(expr: Expression): ExpressionJson {
 	}
 }
 
-function generateTransition(tr: ReceiveConditionWithOverride2): TransitionJson {
+function generateTransition(tr: ReceiveConditionWithOverride): TransitionJson {
 	return {
 		name: tr.condition.name,
 		transitionCondition: tr.condition.expression !== undefined ? ToExpressionJson(tr.condition.expression) : {
@@ -234,6 +319,15 @@ function generateTransition(tr: ReceiveConditionWithOverride2): TransitionJson {
 	}
 }
 
+function MapToExpressionJson(expressionMap: ExpressionMap): Map<string, ExpressionJson> {
+	const result = new Map<string, ExpressionJson>();
+	expressionMap.mapEntries.forEach(entry => {
+		// property must only have one elem since this variable reference is to a port
+		result.set(entry.key.ref!.property[0].ref!.name, ToExpressionJson(entry.value));
+	});
+	return result;
+}
+
 function generateStateConfiguration(sc: StateConfiguration): StateConfigurationJson {
 	return {
 		stateTypeRef: sc.stateRef.ref!.name,
@@ -241,33 +335,36 @@ function generateStateConfiguration(sc: StateConfiguration): StateConfigurationJ
 		transitions: sc.transitions.map(tr => generateTransition(tr)),
 		output: sc.output.map(out => ({
 			port: out.portRef.ref!.name,
-			value: ToExpressionJson(out.expression)
+			value: out.expressionMap !== undefined  ? MapToExpressionJson(out.expressionMap) :  ToExpressionJson(out.expression!)
 		}))
 	}
 }
 
 function MapValueType(valueType: "bool" | "int" | "string" | OBJECT): Array<PortObjectMap> | 'bool' | 'int' | 'string' {
+	
 	if(isOBJECT(valueType)) {
 		return valueType.properties.map(prop => {
-			
-			if(isOBJECT(prop.value)){
-				throw new Error("OBJECT type is not supported in this context");
-			}
-			
+
+
 			let valueTypeMapped: 'bool' | 'int' | 'string';
-			if(prop.$type === 'BooleanExpression') {
-				valueTypeMapped = 'bool';
-			}else if(prop.$type === 'IntegerExpression') {
-				valueTypeMapped = 'int';
+
+			switch (prop.$type){
+				case "BooleanExpression":
+					valueTypeMapped = 'bool';
+					break;
+				case "ArrayExpression":
+					valueTypeMapped = prop.type;
+					break;
+				case "IntegerExpression":
+					valueTypeMapped = 'int';
+					break;
+				case "ObjectExpression":
+					throw new Error("OBJECT type is not supported in this context");
+				case "StringExpression":
+					valueTypeMapped = 'string';
+					break;
 			}
-			else if(prop.$type === 'StringExpression') {
-				valueTypeMapped = 'string';
-			}
-			else {
-				throw new Error("Unsupported value type: " + prop.$type);
-			}
-			
-			return {
+			return <PortObjectMap>{
 				name: prop.name,
 				valueType: valueTypeMapped
 			}

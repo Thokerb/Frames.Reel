@@ -3,10 +3,13 @@ import {ExpressionValueType} from "./reel-json-generate.js";
 
 export interface StatePropertyJson {
 	name: string;
-	type: "BooleanExpression" | "IntegerExpression" | "StringExpression" ;
-	value: string | number | boolean | undefined; // This could be more specific based on the type of the property
+	type:  StatePropValueType;
+	isArray?: boolean;
+	value: string | number | boolean | Array<string> | Array<number> | Array<boolean> | undefined; // This could be more specific based on the type of the property
 	// Add other relevant fields as needed
 }
+
+export type StatePropValueType ="BooleanExpression" | "IntegerExpression" | "StringExpression";
 
 export interface StateJson {
 	name: string;
@@ -25,7 +28,7 @@ export interface ExpressionJson {
 
 export interface OutputJson {
 	port: string; // Name of the port
-	value: ExpressionJson;
+	value:  ExpressionJson | Map<string, ExpressionJson>;
 }
 
 export interface TransitionJson {

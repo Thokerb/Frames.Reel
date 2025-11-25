@@ -44,7 +44,7 @@ ModelImports:
 
 
 AtomicShortModel:
-    published?='export'? 'atomic2' 'model' name=ID '{'  
+    published?='export'? 'atomic' 'model' name=ID '{'  
          ('state' ':' stateType=[State]  definitionOverrides=StateDefinitionOverrides? )
          (ports=PortConfiguration)?
         (stateConfiguration+=StateConfiguration)*
@@ -61,7 +61,7 @@ StateConfiguration:
     'stateDefinition' stateRef=[StateName]':' '{'
         (timeAdvance=TimeAdvanceStateConfiguration)
         ('transitions'':''{'
-            (transitions+=ReceiveConditionWithOverride2)*
+            (transitions+=ReceiveConditionWithOverride)*
             '}'
             )
         ('output' ':' '{'
@@ -80,11 +80,11 @@ PortType returns string:
 ;
 
 
-ReceiveConditionWithOverride2:
-    (condition=ReceiveCondition2 '=>' overrides=StateDefinitionOverridesWithBecome )
+ReceiveConditionWithOverride:
+    (condition=ReceiveCondition '=>' overrides=StateDefinitionOverridesWithBecome )
 ;
 
-ReceiveCondition2:
+ReceiveCondition:
     '('name=ID')' ('with' expression=Expression )?
 ;
 
@@ -93,7 +93,14 @@ Port:
 ;
 
 OutputMap:
-    portRef=[Port:ID] ':' expression=Expression ';'
+    portRef=[Port:ID] '=' (expression=Expression| expressionMap=ExpressionMap) ';'
+;
+
+ExpressionMap:
+    '{' (mapEntries+=MapEntry (',' mapEntries+=MapEntry)*)? '}'
+;
+MapEntry:
+    key=[VariableReference:ID] ':' value=Expression
 ;
 
 
@@ -158,6 +165,7 @@ Variable:
     ( IntegerExpression 
     | BooleanExpression
     | StringExpression
+    | ArrayExpression
     | ObjectExpression
 );
 
@@ -178,6 +186,15 @@ StringExpression:
 
 ObjectExpression:
     'object' name=ID '=' value=OBJECT
+;
+
+
+ArrayExpression: 
+  'array'
+   ((type='string' name=ID '=' '[' (stringElements+=(STRING) (',' stringElements+=(STRING))*)? ']')  |
+   (type='int' name=ID '=' '[' (IntElements+=(INT) (',' IntElements+=(INT))*)? ']') |
+   (type='bool' name=ID '=' '[' (BoolElements+=(BooleanValue) (',' BoolElements+=(BooleanValue))*)? ']'))
+  ';'
 ;
 
 OBJECT:
@@ -227,8 +244,13 @@ PortReference:
 
 
 VariableReference:
-    property+=[Variable] ('.' property+=[Variable])*
+    property+=[Variable] ('.' property+=[Variable])* 
+    propertyArrayAccess+=PropertyArrayAccess?
 ;
+PropertyArrayAccess:
+    accessor='get('index=INT')' |'first()'|'last()'|'remove('index=INT')'|'length()'
+;
+
 
 
 hidden terminal WS: /\s+/;
