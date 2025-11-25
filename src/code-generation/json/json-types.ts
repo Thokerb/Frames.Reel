@@ -25,6 +25,16 @@ export interface ExpressionJson {
 	returnType?: ExpressionValueType // The type of the expression, e.g., 'int', 'bool', 'string', etc.
 }
 
+export interface ExpressionTreeJson {
+	expressionType: string; // e.g., 'BinaryExpression', 'Literal', 'VariableReference', etc.
+	value?: string | number | boolean; // For literals
+	variableName?: string; // For variable references
+	operator?: string; // For binary expressions
+	left?: ExpressionTreeJson; // Left operand for binary expressions
+	right?: ExpressionTreeJson; // Right operand for binary expressions
+	// Add other relevant fields as needed for different expression types
+}
+
 
 export interface OutputJson {
 	port: string; // Name of the port

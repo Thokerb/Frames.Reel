@@ -116,7 +116,7 @@ StateDefinitionOverrides:
 StateDefinitionOverridesWithBecome:
     ('{'
         ('state''.''name' 'becomes' stateRef=[StateName] ';')
-        (properties+=Assignment ';')* 
+        (properties+=Expression ';')* 
     '}')
 ;
 
@@ -208,8 +208,7 @@ BooleanValue returns boolean:
 
 
 // expressions
-Expression:
-    Assignment;
+Expression:    Assignment | Primary;
 
 Assignment infers Expression:
     Addition ({infer BinaryExpression.left=current} operator=('=') right=Addition)*;
@@ -245,10 +244,16 @@ PortReference:
 
 VariableReference:
     property+=[Variable] ('.' property+=[Variable])* 
-    propertyArrayAccess+=PropertyArrayAccess?
+    propertyArrayAccess=PropertyArrayAccess?
 ;
+
 PropertyArrayAccess:
-    accessor='get('index=INT')' |'first()'|'last()'|'remove('index=INT')'|'length()'
+    
+    ("." type='get' '(' index=Expression ')' ) |
+    ("." type='remove' '(' index=Expression ')') |
+    ("." type='length' '(' ')') |
+    ("." type='append' '(' value=Expression ')') |
+    ("." type='push' '(' value=Expression ')')
 ;
 
 

@@ -3,7 +3,7 @@
 	AtomicShortModel,
 	CoupledModel,
 	Expression,
-	ExpressionMap,
+	ExpressionMap, isArrayExpression,
 	isAtomicShortModel,
 	isCoupledModel,
 	isOBJECT,
@@ -31,6 +31,7 @@ import {
 	StatePropertyJson, StatePropValueType,
 	TransitionJson
 } from "./json-types.js";
+import {ReelInference} from "../../reel-infer.js";
 
 function generateStateObject(state: State) {
 	let stateObject: StateJson = {
@@ -221,24 +222,57 @@ function flattenStateProperties(
 	return result;
 }
 
-export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression' | 'ArrayExpression';
+export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression' | 'ArrayExpression' | 'void';
 
 
 
 // TODO: use cstNode or reflect the variable name
-function GetVariableName(ref: VariableReference): string {
-	return ref.$cstNode!.text
+function GetVariableNames(ref: VariableReference): Array<string> {
+	
+	const result: Array<string> = [];
+	const prop = ref.property[ref.property.length - 1].ref;
+	if(isArrayExpression(prop) && ref.propertyArrayAccess?.index !== undefined) {
+		result.push(...ReelExpressionChecker.GetVariables(ref.propertyArrayAccess.index));
+	}
+	if(isArrayExpression(prop) && ref.propertyArrayAccess?.value !== undefined) {
+		result.push(...ReelExpressionChecker.GetVariables(ref.propertyArrayAccess.value));
+	}
+	
+	return [...result, ref.property.map(x => x.ref!.name).join('.')];
+	// return ref.$cstNode!.text
+}
+// TODO: use cstNode or reflect the variable name
+function GetReturnType(ref: VariableReference): ExpressionValueType | undefined {
+	
+	const prop = ref.property[ref.property.length - 1].ref;
+	if(isArrayExpression(prop)) {
+		let arrayElem = ReelInference.getAtomicModel(ref.$container)?.stateType.ref?.properties.find(x => x.name === prop.name)?.$type;
+		if(arrayElem === undefined) {
+			throw new Error("Array element type is undefined for "+prop.name);
+		}
+		return arrayElem;
+	}
+	
+	return prop?.$type;
+	// return ref.$cstNode!.text
 }
 
-function GetVariable(ref: VariableReference): Variable | undefined {
-	// return last variable, which is not object but variable
-	return ref.property[ref.property.length - 1].ref;
-
-}
+// function GetExpressionValueType(ref: VariableReference):  ExpressionValueType | undefined {
+// 	// return last variable, which is not object but variable
+// 	const prop = ref.property[ref.property.length - 1].ref;
+// 	if(prop === undefined) {
+// 		return undefined;
+// 	}
+// 	if(prop.$type === "ArrayExpression") {
+// 		return MapPortType(prop.type)
+// 	}
+// 	return prop.$type;
+//
+// }
 
 function MapPortType(valueType: "bool" | "int" | "string" | OBJECT | undefined): ExpressionValueType {
 	if (valueType === undefined) {
-		throw new Error("Value type is undefined");
+		throw new Error("Value type is undefined"+JSON.stringify(valueType));
 	}
 
 	switch (valueType) {
@@ -273,10 +307,10 @@ function ToExpressionJson(expr: Expression): ExpressionJson {
 
 	if (isVariableReference(expr)) {
 		return {
-			expression: GetVariableName(expr),
-			variables: [GetVariableName(expr)],
+			expression: expr.$cstNode?.text ?? '',
+			variables: GetVariableNames(expr),
 			isAssignment: false,
-			returnType: GetVariable(expr)?.$type
+			returnType: GetReturnType(expr)
 		}
 	}
 

@@ -3,13 +3,13 @@
 	BinaryExpression,
 	isAtomicShortModel,
 	isBinaryExpression, isMapEntry, isModelReference,
-	isObjectExpression, isOutputMap, isReceiveCondition,
+	isObjectExpression, isOutputMap, isPropertyArrayAccess, isReceiveCondition,
 	isState, isStateConfiguration,
 	isStateDefinitionOverrides,
 	isStateDefinitionOverridesWithBecome,
 	isTimeAdvanceStateConfiguration, MapEntry,
 	OBJECT_OVERRIDE,
-	ObjectExpression, OutputMap, ReceiveCondition,
+	ObjectExpression, OutputMap, PropertyArrayAccess, ReceiveCondition,
 	State,
 	StateConfiguration,
 	StateDefinitionOverrides,
@@ -117,8 +117,11 @@ export class ReelInference{
 	}
 	
 	
-	public static getAtomicModel(container:  MapEntry | StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | OutputMap | TimeAdvanceStateConfiguration | ReceiveCondition | StateConfiguration): AtomicShortModel | undefined {
+	public static getAtomicModel(container: PropertyArrayAccess | MapEntry | StateDefinitionOverridesWithBecome | StateDefinitionOverrides | BinaryExpression | OutputMap | TimeAdvanceStateConfiguration | ReceiveCondition | StateConfiguration): AtomicShortModel | undefined {
 
+		if(isPropertyArrayAccess(container)) {
+			return this.getAtomicModel(container.$container.$container);
+		}
 		if(isMapEntry(container)){
 			return this.getAtomicModel(container.$container.$container);
 		}
