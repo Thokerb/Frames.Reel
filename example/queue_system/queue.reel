@@ -1,0 +1,79 @@
+state QueueState {
+    states: [Idle | Busy];
+    initial = Idle;
+
+    int remaining_time = 0;
+
+    // object processing = {};
+    int processing;
+
+    array int idle_procs = [0,1,2];   // structural parameter n outputs
+    array int queue = [2];
+}
+
+
+export atomic model Queue {
+
+    state: QueueState {
+        initial = Idle;
+    }
+
+    section Ports {
+        int InPort in_event;
+        int InPort in_finish;
+
+        // Example with 3 processors; change as needed
+        int OutPort proc_0;
+        int OutPort proc_1;
+        int OutPort proc_2;
+    }
+
+    // -----------------------------
+    // State: Idle
+    // -----------------------------
+    stateDefinition Idle: {
+        time-advance: Infinity TimeUnits
+
+        transitions: {
+            // Receive an incoming event
+            (in_event) with InPort in_event.any => {
+                state.name becomes Busy;
+                processing = InPort in_event.0;
+                remaining_time = 1;
+            }
+        }
+
+        output: { }
+    }
+
+    // -----------------------------
+    // State: Busy
+    // -----------------------------
+    stateDefinition Busy: {
+        time-advance: remaining_time TimeUnits
+
+        transitions: {
+            // Incoming event while processing: enqueue
+            (in_event) with InPort in_event => {
+                state.name becomes Busy;
+                queue.get(0);
+                queue.remove(queue.length());
+                queue.append(2);
+            }
+
+            // Processor finishes
+            (in_finish) with InPort in_finish => {
+                state.name becomes Busy;
+
+
+                // If nothing processing, dequeue next task
+                // (Expressed abstractly)
+            }
+        }
+
+        output: {
+            // Output the event to the port of the first idle processor
+            proc_0 = processing;
+        }
+    }
+}

@@ -1,9 +1,9 @@
 ﻿import {
 	ArrayExpression,
-	AtomicShortModel,
+	AtomicShortModel, BinaryExpression,
 	CoupledModel,
 	Expression,
-	ExpressionMap, isArrayExpression,
+	ExpressionMap,
 	isAtomicShortModel,
 	isCoupledModel,
 	isOBJECT,
@@ -13,7 +13,7 @@
 	isVariableReference,
 	Model,
 	ModelReference,
-	OBJECT,
+	OBJECT, PortReference,
 	PropertiesOverride,
 	ReceiveConditionWithOverride,
 	State,
@@ -22,16 +22,14 @@
 	VariableOverride,
 	VariableReference
 } from "../../language/generated/ast.js";
-import {ReelExpressionChecker} from "../../reel-expression-checker.js";
 import {
 	AtomicModelJson, CoupledModelJson,
-	ExpressionJson, ModelReferenceJson,
+	ExpressionJson, ExpressionTreeJson, ModelReferenceJson,
 	PortObjectMap, ReelJson,
 	StateConfigurationJson, StateJson,
 	StatePropertyJson, StatePropValueType,
 	TransitionJson
 } from "./json-types.js";
-import {ReelInference} from "../../reel-infer.js";
 
 function generateStateObject(state: State) {
 	let stateObject: StateJson = {
@@ -226,36 +224,37 @@ export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'O
 
 
 
+
+// // TODO: use cstNode or reflect the variable name
+// function GetVariableNames(ref: VariableReference): Array<string> {
+//	
+// 	const result: Array<string> = [];
+// 	const prop = ref.property[ref.property.length - 1].ref;
+// 	if(isArrayExpression(prop) && ref.propertyArrayAccess?.index !== undefined) {
+// 		result.push(...ReelExpressionChecker.GetVariables(ref.propertyArrayAccess.index));
+// 	}
+// 	if(isArrayExpression(prop) && ref.propertyArrayAccess?.value !== undefined) {
+// 		result.push(...ReelExpressionChecker.GetVariables(ref.propertyArrayAccess.value));
+// 	}
+//	
+// 	return [...result, ref.property.map(x => x.ref!.name).join('.')];
+// 	// return ref.$cstNode!.text
+// }
 // TODO: use cstNode or reflect the variable name
-function GetVariableNames(ref: VariableReference): Array<string> {
-	
-	const result: Array<string> = [];
-	const prop = ref.property[ref.property.length - 1].ref;
-	if(isArrayExpression(prop) && ref.propertyArrayAccess?.index !== undefined) {
-		result.push(...ReelExpressionChecker.GetVariables(ref.propertyArrayAccess.index));
-	}
-	if(isArrayExpression(prop) && ref.propertyArrayAccess?.value !== undefined) {
-		result.push(...ReelExpressionChecker.GetVariables(ref.propertyArrayAccess.value));
-	}
-	
-	return [...result, ref.property.map(x => x.ref!.name).join('.')];
-	// return ref.$cstNode!.text
-}
-// TODO: use cstNode or reflect the variable name
-function GetReturnType(ref: VariableReference): ExpressionValueType | undefined {
-	
-	const prop = ref.property[ref.property.length - 1].ref;
-	if(isArrayExpression(prop)) {
-		let arrayElem = ReelInference.getAtomicModel(ref.$container)?.stateType.ref?.properties.find(x => x.name === prop.name)?.$type;
-		if(arrayElem === undefined) {
-			throw new Error("Array element type is undefined for "+prop.name);
-		}
-		return arrayElem;
-	}
-	
-	return prop?.$type;
-	// return ref.$cstNode!.text
-}
+// function GetReturnType(ref: VariableReference): ExpressionValueType | undefined {
+//	
+// 	const prop = ref.property[ref.property.length - 1].ref;
+// 	if(isArrayExpression(prop)) {
+// 		let arrayElem = ReelInference.getAtomicModel(ref.$container)?.stateType.ref?.properties.find(x => x.name === prop.name)?.$type;
+// 		if(arrayElem === undefined) {
+// 			throw new Error("Array element type is undefined for "+prop.name);
+// 		}
+// 		return arrayElem;
+// 	}
+//	
+// 	return prop?.$type;
+// 	// return ref.$cstNode!.text
+// }
 
 // function GetExpressionValueType(ref: VariableReference):  ExpressionValueType | undefined {
 // 	// return last variable, which is not object but variable
@@ -303,49 +302,255 @@ function MapArrayType(valueType: "bool" | "int" | "string" ): StatePropValueType
 }
 
 
-function ToExpressionJson(expr: Expression): ExpressionJson {
+function GetValueType(variable: ArrayExpression) {
+	switch (variable.type) {
+		case "bool":
+			return 'BooleanExpression';
+		case "int":
+			return 'IntegerExpression';
+		case "string":
+			return 'StringExpression';
+
+	}
+}
+
+function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: VariableReference, name: string): ExpressionTreeJson {
+	if(expr.propertyArrayAccess === undefined) {
+		return <ExpressionTreeJson> {
+			operator: "Literal",
+			valueType: GetValueType(variable),
+			isLeaf: true,
+			value: GetValues(variable),
+			variableName: name,
+		}
+	}
+	
+	switch (expr.propertyArrayAccess.type) {
+		case "append":
+			return <ExpressionTreeJson> {
+				valueType: "void",
+				isLeaf: false,
+				variableName: name,
+				operator: "ArrayAppend",
+				left: <ExpressionTreeJson> {
+					operator: "Literal",
+					valueType: GetValueType(variable),
+					isLeaf: true,
+					value: GetValues(variable),
+					variableName: name,
+				},
+				right: ToExpressionJson(expr.propertyArrayAccess.value!)
+			}
+		case "get":
+			return <ExpressionTreeJson> {
+				valueType: GetValueType(variable),
+				isLeaf: false,
+				variableName: name,
+				operator: "ArrayGet",
+				left: <ExpressionTreeJson> {
+					valueType: GetValueType(variable),
+					isLeaf: true,
+					value: GetValues(variable),
+					variableName: name,
+				},
+				right: ToExpressionJson(expr.propertyArrayAccess.index!)
+			}
+		case "length":
+			return <ExpressionTreeJson> {
+				valueType: 'IntegerExpression',
+				isLeaf: true,
+				variableName: name, // I think variable name is not needd for non Literal nodes, but keeping for now
+				operator: "ArrayLength",
+				left: <ExpressionTreeJson> {
+					operator: "Literal",
+					valueType: GetValueType(variable),
+					isLeaf: true,
+					value: GetValues(variable),
+					variableName: name,
+				}
+			}
+		case "push":
+			return <ExpressionTreeJson> {
+				valueType: "void",
+				isLeaf: false,
+				variableName: name,
+				operator: "ArrayPrepend",
+				left: <ExpressionTreeJson> {
+					operator: "Literal",
+					valueType: GetValueType(variable),
+					isLeaf: true,
+					value: GetValues(variable),
+					variableName: name,
+				},
+				right: ToExpressionJson(expr.propertyArrayAccess.value!)
+			}
+		case "remove":
+			return <ExpressionTreeJson> {
+				valueType: "void",
+				isLeaf: false,
+				variableName: name,
+				operator: "ArrayRemove",
+				left: <ExpressionTreeJson> {
+					operator: "Literal",
+					valueType: GetValueType(variable),
+					isLeaf: true,
+					value: GetValues(variable),
+					variableName: name,
+				},
+				right: ToExpressionJson(expr.propertyArrayAccess.index!)
+			}
+			break;
+
+	}
+}
+
+function VariableReferenceToExpressionTreeJson(expr: VariableReference): ExpressionTreeJson {
+	let variable = expr.property[expr.property.length - 1].ref;
+	if(variable === undefined) {
+		throw new Error("Variable reference is undefined");
+	}
+	const name = expr.property.map(x => x.ref!.name).join('.');
+	switch (variable.$type){
+		case "BooleanExpression":
+		case "StringExpression":
+		case "IntegerExpression":
+			return <ExpressionTreeJson> {
+				operator: "Literal",
+				value: variable.value,
+				valueType: variable.$type,
+				isLeaf: true,
+				variableName: name,
+			}
+		case "ArrayExpression":
+			return ArrayExpressionToExpressionTreeJson(variable, expr,name);
+		case "ObjectExpression":
+			throw new Error("ObjectExpression type is undefined for "+variable.$type);
+		
+	}
+	
+}
+
+function PortReferenceToExpressionTreeJson(expr: PortReference): ExpressionTreeJson {
+	const port = expr.property.ref;
+	if(port === undefined) {
+		throw new Error("Port reference is undefined");
+	}
+	
+	return <ExpressionTreeJson>{
+		operator: "Literal",
+		valueType: MapPortType(port.valueType),
+		isLeaf: true,
+		variableName: port.name,
+		isPort: true
+	};
+}
+
+function BinaryExpressionToExpressionTreeJson(expr: BinaryExpression): ExpressionTreeJson {
+	const left = ToExpressionJson(expr.left);
+	const right = ToExpressionJson(expr.right);
+
+	return {
+		operator: expr.operator,
+		isLeaf: false,
+		valueType: "void",
+		left: left,
+		right: right
+	};
+}
+
+function ParseLiteral(expr: BinaryExpression) : ExpressionTreeJson{
+	let value = expr.$cstNode?.text;
+	if(value === undefined) {
+		throw new Error("Literal value is undefined");
+	}
+	
+	if(value === "Infinity") {
+		return <ExpressionTreeJson>{
+			operator: "Literal",
+			valueType: 'IntegerExpression',
+			isLeaf: true,
+			value: 'Infinity'
+		};
+	}
+	
+	if(value === 'true' || value === 'false') {
+		return <ExpressionTreeJson>{
+			operator: "Literal",
+			valueType: 'BooleanExpression',
+			isLeaf: true,
+			value: value
+		};
+	}
+	
+	if(isNaN(Number(value))) {
+		// not a number, treat as string
+		return <ExpressionTreeJson>{
+			operator: "Literal",
+			valueType: 'StringExpression',
+			isLeaf: true,
+			value: value
+		};
+	}
+	
+	
+	return <ExpressionTreeJson>{
+		operator: "Literal",
+		valueType: 'IntegerExpression',
+		isLeaf: true,
+		value: Number(value)
+	};
+}
+
+function ToExpressionJson(expr: Expression): ExpressionTreeJson {
 
 	if (isVariableReference(expr)) {
-		return {
-			expression: expr.$cstNode?.text ?? '',
-			variables: GetVariableNames(expr),
-			isAssignment: false,
-			returnType: GetReturnType(expr)
-		}
+		return VariableReferenceToExpressionTreeJson(expr);
+		
+		// return {
+		// 	expression: expr.$cstNode?.text ?? '',
+		// 	variables: GetVariableNames(expr),
+		// 	isAssignment: false,
+		// 	returnType: GetReturnType(expr)
+		// }
 	}
 
 	if (isPortReference(expr)) {
-		return {
-			expression: expr.property.ref?.name ?? '',
-			variables: [expr.property.ref?.name ?? ''],
-			isAssignment: false,
-			returnType: MapPortType(expr.property.ref?.valueType)
-		}
+		return PortReferenceToExpressionTreeJson(expr);
 	}
 
-	let returnType = ReelExpressionChecker.CheckType(expr);
-	if (ReelExpressionChecker.isError(returnType) || returnType === 'unknown') {
-		throw returnType;
+	// let returnType = ReelExpressionChecker.CheckType(expr);
+	// if (ReelExpressionChecker.isError(returnType) || returnType === 'unknown') {
+	// 	throw returnType;
+	// }
+	console.log(expr);
+	
+	// special case catch constant Infinity
+	
+	if(expr.left === undefined && expr.right === undefined){
+		// this happens for literals
+		return ParseLiteral(expr)
 	}
+	
+	return BinaryExpressionToExpressionTreeJson(expr);
 
-	const topExpression = ReelExpressionChecker.GetTopExpression(expr);
-	const isAssignment = topExpression.operator === '=';
-	return {
-		returnType: returnType,
-		variables: ReelExpressionChecker.GetVariables(expr),
-		isAssignment: isAssignment,
-		expression: expr.$cstNode!.text
-	}
+	// const topExpression = ReelExpressionChecker.GetTopExpression(expr);
+	// const isAssignment = topExpression.operator === '=';
+	// return {
+	// 	returnType: returnType,
+	// 	variables: ReelExpressionChecker.GetVariables(expr),
+	// 	isAssignment: isAssignment,
+	// 	expression: expr.$cstNode!.text
+	// }
 }
 
 function generateTransition(tr: ReceiveConditionWithOverride): TransitionJson {
 	return {
 		name: tr.condition.name,
-		transitionCondition: tr.condition.expression !== undefined ? ToExpressionJson(tr.condition.expression) : {
-			expression: '',
-			variables: [],
-			returnType: 'BooleanExpression',
-			isAssignment: false
+		transitionCondition: tr.condition.expression !== undefined ? ToExpressionJson(tr.condition.expression) : <ExpressionTreeJson>{
+			operator: "Literal",
+			valueType: 'BooleanExpression',
+			isLeaf: true,
+			value: true
 		},
 		transitionNewStateTypeRef: tr.overrides.stateRef.ref!.name,
 		transitionStateModifications: tr.overrides.properties.map(mod => ToExpressionJson(mod))

@@ -1,0 +1,69 @@
+// A state type for the generator
+state GeneratorState {
+    states: [ active | finished ];
+    initial = active;
+
+    // Properties that correspond to Python attributes
+    int numberJobs;       // Will be set from a constructor override
+    int generatorWaitingTime; // generator waiting time
+    int jobSize; 
+    int currentWaitingTime = 0;
+    array string test = [""];
+    array bool test2 = [false, false];
+}
+
+// The atomic model
+export atomic model Generator {
+
+    state: GeneratorState {
+        initial = active;
+        // initial to_generate must be provided by a model reference
+    }
+
+    section Ports {
+        {int size; int creation;} OutPort out_event;
+    }
+
+    // State-specific behaviour
+    stateDefinition active : {
+
+        // TIME ADVANCE:
+        // remaining is an object storing either:
+        //   {value="Infinity"}
+        //   {dist="exp", lambda=<gen_param>}
+        time-advance: currentWaitingTime TimeUnits
+
+        transitions: {
+            (generate) with numberJobs >= 1  => {
+                state.name becomes active;
+
+                
+                // to_generate -= 1
+                numberJobs = numberJobs - 1;
+                currentWaitingTime = generatorWaitingTime; // in example this is random
+                
+            }
+            (last_entry) with numberJobs == 1 => {
+                state.name becomes finished;
+                // numberJobs = numberJobs - 1;
+            }
+        }
+
+        output: {
+            // creation = current_time + remaining.timeAdvance
+            out_event = {creation:  22, size: generatorWaitingTime};
+        }
+    }
+
+    stateDefinition finished : {
+        time-advance: Infinity TimeUnits
+        transitions: {
+
+        }
+        output: {
+            
+        }
+
+        // In finished state, no transitions, no output
+    }
+}

@@ -18,23 +18,29 @@ export interface StateJson {
 	properties: Array<StatePropertyJson>;
 }
 
-export interface ExpressionJson {
-	expression: string;
-	variables: Array<string>;
-	isAssignment?: boolean; // Indicates if this expression is an assignment
-	returnType?: ExpressionValueType // The type of the expression, e.g., 'int', 'bool', 'string', etc.
-}
+export type ExpressionJson = ExpressionTreeJson
+// export interface ExpressionJson {
+// 	expression: string;
+// 	variables: Array<string>;
+// 	isAssignment?: boolean; // Indicates if this expression is an assignment
+// 	returnType?: ExpressionValueType // The type of the expression, e.g., 'int', 'bool', 'string', etc.
+// }
 
+// Theoretically we could split this in multiple types, but for simplicity, we keep it in one for now
 export interface ExpressionTreeJson {
-	expressionType: string; // e.g., 'BinaryExpression', 'Literal', 'VariableReference', etc.
-	value?: string | number | boolean; // For literals
+	value?: string | number | boolean | Array<string> | Array<number> | Array<boolean>; // For literals
+	valueType?: ExpressionValueType; // Type of the literal value
 	variableName?: string; // For variable references
-	operator?: string; // For binary expressions
+	operator: Operator; // For binary expressions
+	isPort?: boolean; // Indicates if this is a port reference
 	left?: ExpressionTreeJson; // Left operand for binary expressions
 	right?: ExpressionTreeJson; // Right operand for binary expressions
+	isLeaf?: boolean; // Indicates if this node is a leaf node
 	// Add other relevant fields as needed for different expression types
 }
 
+export type ExpressionType = 'Literal' | 'BinaryExpression';
+export type Operator = "Literal" | "ArrayGet" |"ArrayAppend" | "ArrayPrepend" | "ArrayLength" |"ArrayRemove" | "ArrayContains" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" | "%" | "and" | "or" | "!" | "=";
 
 export interface OutputJson {
 	port: string; // Name of the port
