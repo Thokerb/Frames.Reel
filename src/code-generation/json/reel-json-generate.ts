@@ -9,7 +9,7 @@
 	isOBJECT,
 	isOBJECT_OVERRIDE,
 	isPortReference,
-	isState,
+	isState, isVariable,
 	isVariableReference,
 	Model,
 	ModelReference,
@@ -220,7 +220,7 @@ function flattenStateProperties(
 	return result;
 }
 
-export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression' | 'ArrayExpression' | 'void';
+export type ExpressionValueType = 'BooleanExpression' | 'IntegerExpression' | 'ObjectExpression' | 'StringExpression' | 'ArrayExpression' | 'VoidExpression';
 
 
 
@@ -328,7 +328,7 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 	switch (expr.propertyArrayAccess.type) {
 		case "append":
 			return <ExpressionTreeJson> {
-				valueType: "void",
+				valueType: "VoidExpression",
 				isLeaf: false,
 				variableName: name,
 				operator: "ArrayAppend",
@@ -371,7 +371,7 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 			}
 		case "push":
 			return <ExpressionTreeJson> {
-				valueType: "void",
+				valueType: "VoidExpression",
 				isLeaf: false,
 				variableName: name,
 				operator: "ArrayPrepend",
@@ -386,7 +386,7 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 			}
 		case "remove":
 			return <ExpressionTreeJson> {
-				valueType: "void",
+				valueType: "VoidExpression",
 				isLeaf: false,
 				variableName: name,
 				operator: "ArrayRemove",
@@ -452,7 +452,7 @@ function BinaryExpressionToExpressionTreeJson(expr: BinaryExpression): Expressio
 	return {
 		operator: expr.operator,
 		isLeaf: false,
-		valueType: "void",
+		valueType: "VoidExpression",
 		left: left,
 		right: right
 	};
@@ -562,7 +562,9 @@ function MapToExpressionJson(expressionMap: ExpressionMap): Map<string, Expressi
 	const result = new Map<string, ExpressionJson>();
 	expressionMap.mapEntries.forEach(entry => {
 		// property must only have one elem since this variable reference is to a port
-		result.set(entry.key.ref!.property[0].ref!.name, ToExpressionJson(entry.value));
+
+		const key = isVariable(entry.key.ref) ? entry.key.ref?.name : entry.key.ref!.property[0].ref!.name;
+		result.set(key, ToExpressionJson(entry.value));
 	});
 	return result;
 }

@@ -112,10 +112,28 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				// should not happen
 				return super.getScope(context);
 			}
-			
+
 			
 			return this.createScopeForNodes(port.valueType.properties);
 		}
+
+		if(isPortReference(context.container) && context.property === 'objectProperty') {
+			const portRef = context.container;
+			const atomicModel = ReelInference.getAtomicModel(portRef.$container);
+			if (atomicModel === undefined) {
+				return super.getScope(context);
+			}
+			const port = atomicModel.ports?.ports.find(x => x.name === portRef.property.ref?.name);
+			if(port === undefined) {
+				return super.getScope(context);
+			}
+			
+			if(!isOBJECT(port.valueType)){
+				return super.getScope(context);
+			}
+			return this.createScopeForNodes(port.valueType.properties);
+		}
+
 
 		if (isVariableReference(context.container)) {
 			const variable = context.container;
@@ -124,7 +142,6 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 			if (state === undefined) {
 				return super.getScope(context);
 			}
-
 			// only depth 0 
 			if (context.index === 0) {
 				return this.scopeState(state);
@@ -247,9 +264,8 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 				return super.getScope(context);
 			}
 
-			const portType =
-				context.container.portType;
-
+			const portType = context.container.portType;
+			
 			return this.createPortNodes(atomicModel?.ports?.ports,portType);
 
 		}
@@ -332,6 +348,7 @@ export class ReelScopeProvider extends DefaultScopeProvider {
 		if (classItem.properties) {
 			allMembers = allMembers.concat(classItem.properties.map((property) => <AstNode>{
 				$type: property.$type,
+				type: property?.$type === "ArrayExpression" ? property.type : undefined,
 				name: property.name,
 				$container: classItem,
 				$containerRef: classItem,

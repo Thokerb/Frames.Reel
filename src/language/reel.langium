@@ -100,9 +100,13 @@ ExpressionMap:
     '{' (mapEntries+=MapEntry (',' mapEntries+=MapEntry)*)? '}'
 ;
 MapEntry:
-    key=[VariableReference:ID] ':' value=Expression
+    key=[VariableType:ID] ':' value=Expression
 ;
 
+// this is because it is a lot easier to provide custom variable scope
+VariableType:
+    Variable | VariableReference
+;
 
 StateDefinitionOverrides:
     ('{'
@@ -237,7 +241,7 @@ Primary infers Expression:
 ;
 
 PortReference:
-    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? )
+    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? ('.'objectProperty=[VariableReference:ID])? )
 ;
 
 

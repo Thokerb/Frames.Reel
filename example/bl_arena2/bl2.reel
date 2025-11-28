@@ -15,7 +15,7 @@
     }
 }
 
-export atomic2 model BlinkingLightModel2 {
+export atomic model BlinkingLightModel2 {
     state: BlinkingLightState2 {
         initial = off;
         age = true;
@@ -50,7 +50,7 @@ export atomic2 model BlinkingLightModel2 {
              }
          }
          output: {
-             x: "2";
+             x= "2";
          }
      }
 

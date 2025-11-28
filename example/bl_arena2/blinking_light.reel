@@ -6,7 +6,7 @@ state BlinkingLightStateBR {
     int WaitingTime = 2;
 }
 
-export atomic2 model BlinkingLightAtomicModelBR {
+export atomic model BlinkingLightAtomicModelBR {
     state: BlinkingLightStateBR {
         initial = On;
         MaxCycles = 0;
@@ -62,7 +62,7 @@ export atomic2 model BlinkingLightAtomicModelBR {
         time-advance: Infinity TimeUnits
         transitions: {}
         output: {
-            PortOutFinished: MaxCycles;
+            PortOutFinished = MaxCycles;
         }
     }
 

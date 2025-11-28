@@ -13,7 +13,7 @@ state GeneratorState {
 }
 
 // The atomic model
-export atomic model Generator {
+atomic model Generator {
 
     state: GeneratorState {
         initial = active;
@@ -21,7 +21,7 @@ export atomic model Generator {
     }
 
     section Ports {
-        {int size; int creation;} OutPort out_event;
+        {int size; int creation_time;} OutPort out_event;
     }
 
     // State-specific behaviour
@@ -50,8 +50,8 @@ export atomic model Generator {
         }
 
         output: {
-            // creation = current_time + remaining.timeAdvance
-            out_event = {creation:  22, size: generatorWaitingTime};
+            // creation_time = current_time + remaining.timeAdvance
+            out_event = {creation_time:  22, size: generatorWaitingTime};
         }
     }
 
