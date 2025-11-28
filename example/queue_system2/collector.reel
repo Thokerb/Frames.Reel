@@ -1,0 +1,27 @@
+state CollectorState {
+    states: [Collecting];
+    initial = Collecting;
+    
+    int current_time = 0;
+    // We cannot log to file in Reel, so we just accept inputs
+}
+
+atomic model Collector {
+    state: CollectorState
+    
+    section Ports {
+        {int size; int creation_time;} InPort in_event;
+    }
+
+    stateDefinition Collecting: {
+        time-advance: Infinity TimeUnits
+        
+        transitions: {
+            (collect) with InPort in_event.any => {
+                state.name becomes Collecting;
+                // In a real simulation, we would log stats here
+            }
+        }
+        output: {}
+    }
+}

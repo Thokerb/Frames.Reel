@@ -1,0 +1,39 @@
+state ArrayTestState{
+    states: [Idle | Busy];
+    initial = Idle;
+    array int test = [];
+    array int test2 = [1,2,3];
+    array string test3 = ["val1"]; 
+}
+
+atomic model ArrayTest {
+    state: ArrayTestState {
+    initial=Idle;
+    }
+
+    section Ports {}
+
+    stateDefinition Idle: {
+        time-advance: Infinity TimeUnits
+
+        transitions: {
+
+            (proc2) with test2.length() > 4 => {
+                state.name becomes Idle;
+                test.remove(test.length() - 1);
+                test2.push(0);
+                test3.append("val3");
+            }
+                        // Receive an incoming event
+            (proc)=> {
+                state.name becomes Idle;
+                test.append(1);
+                test2.append(4);
+                test3.append("val2");
+            } 
+        }
+
+        output: { }
+    }
+
+}
