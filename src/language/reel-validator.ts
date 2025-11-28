@@ -292,8 +292,14 @@ export class ReelValidator {
 
 	// we only check that it is a valid binary expression
 	binaryExpressionCheck(node: Expression | PortReference, accept: ValidationAcceptor) {
-
 		if (isPortReference(node)) {
+
+			if(node.selector !== "any" && node.$container.$type === "ReceiveCondition"){
+				accept('error', `PortReference selector must be 'any' in boolean exist check.`, {
+					node: node,
+					property: 'selector'
+				});
+			}
 			return;
 		}
 

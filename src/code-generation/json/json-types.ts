@@ -31,6 +31,9 @@ export interface ExpressionTreeJson {
 	value?: string | number | boolean | Array<string> | Array<number> | Array<boolean>; // For literals
 	valueType?: ExpressionValueType; // Type of the literal value
 	variableName?: string; // For variable references
+	portObjectPropertyName?: string; // For port object property references
+	portAccessor?: 'first' | 'any' | 'index';
+	portAccessorIndex?: number; // For indexed access
 	operator: Operator; // For binary expressions
 	isPort?: boolean; // Indicates if this is a port reference
 	left?: ExpressionTreeJson; // Left operand for binary expressions
@@ -44,7 +47,7 @@ export type Operator = "Literal" | "ArrayGet" |"ArrayAppend" | "ArrayPrepend" | 
 
 export interface OutputJson {
 	port: string; // Name of the port
-	value:  ExpressionJson | Map<string, ExpressionJson>;
+	value:  Map<string, ExpressionJson>;
 }
 
 export interface TransitionJson {

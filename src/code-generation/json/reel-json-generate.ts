@@ -20,7 +20,7 @@
 	StateConfiguration,
 	Variable,
 	VariableOverride,
-	VariableReference
+	VariableReference,
 } from "../../language/generated/ast.js";
 import {
 	AtomicModelJson, CoupledModelJson,
@@ -430,16 +430,43 @@ function VariableReferenceToExpressionTreeJson(expr: VariableReference): Express
 	
 }
 
+function getPortObjectPropertyName(expr: PortReference): string | undefined {
+    if (expr === undefined) return undefined;
+
+    const ref = expr.objectProperty?.ref;
+
+    if (ref?.$type === "VariableReference") {
+        return ref.property[0].ref?.name;
+    }
+	return ref?.name;
+
+    throw new Error("objectProperty.ref must be a VariableReference");
+}
+
+function mapSelector(selector: "any" | "first" | number | undefined) {
+
+	if (selector === undefined) {
+		return undefined;
+	}
+	if (selector === "any" || selector === "first") {
+		return selector;
+	}
+	return "index";
+}
+
 function PortReferenceToExpressionTreeJson(expr: PortReference): ExpressionTreeJson {
 	const port = expr.property.ref;
 	if(port === undefined) {
 		throw new Error("Port reference is undefined");
 	}
-	
+
 	return <ExpressionTreeJson>{
 		operator: "Literal",
 		valueType: MapPortType(port.valueType),
 		isLeaf: true,
+		portObjectPropertyName: getPortObjectPropertyName(expr),
+		portAccessor: mapSelector(expr.selector),
+		portAccessorIndex: mapSelector(expr.selector) === "index" ? expr.selector as number : undefined,
 		variableName: port.name,
 		isPort: true
 	};
@@ -576,7 +603,7 @@ function generateStateConfiguration(sc: StateConfiguration): StateConfigurationJ
 		transitions: sc.transitions.map(tr => generateTransition(tr)),
 		output: sc.output.map(out => ({
 			port: out.portRef.ref!.name,
-			value: out.expressionMap !== undefined  ? MapToExpressionJson(out.expressionMap) :  ToExpressionJson(out.expression!)
+			value: out.expressionMap !== undefined  ? MapToExpressionJson(out.expressionMap) : new Map<string,ExpressionJson>([["",ToExpressionJson(out.expression!)]])
 		}))
 	}
 }

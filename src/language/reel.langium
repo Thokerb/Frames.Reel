@@ -241,7 +241,7 @@ Primary infers Expression:
 ;
 
 PortReference:
-    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? ('.'objectProperty=[VariableReference:ID])? )
+    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? ('.'objectProperty=[VariableType:ID])? )
 ;
 
 

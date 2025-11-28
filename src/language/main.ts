@@ -16,6 +16,17 @@ const { shared } = createReelServices({ connection, ...NodeFileSystem });
 // add an action to generate the code from the model
 shared.workspace.DocumentBuilder.onBuildPhase(DocumentState.Validated, documents => {
 
+    function replacer(key: string, value: any) {
+    if(value instanceof Map) {
+        return Array.from(value.entries()).map(([k, v]): { key: string; value: any } => ({
+            key: k,
+            value: v
+        }));
+    } else {
+        return value;
+    }
+    }
+
     connection.onRequest('workspace/executeCommand', async (params) => {
         if (params.command === 'reel.generateJSON') {
 
@@ -40,7 +51,9 @@ shared.workspace.DocumentBuilder.onBuildPhase(DocumentState.Validated, documents
                 throw new Error(`No root node parsed for URI: ${uri}`);
             }
 
-            const json = JSON.stringify(generateJsonObjects(rootNode as Model,[]))
+            const jsonObjects = generateJsonObjects(rootNode as Model, []);
+
+            const json = JSON.stringify(jsonObjects, replacer, 2);
             
             return json;
             
@@ -48,6 +61,8 @@ shared.workspace.DocumentBuilder.onBuildPhase(DocumentState.Validated, documents
         throw new Error(`Command not recognized: ${params.command}`);
     });
 })
+
+
 
 // Start the language server with the shared services
 startLanguageServer(shared);
