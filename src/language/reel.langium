@@ -130,7 +130,7 @@ PropertiesOverride:
 ;
 
 VariableOverride:
-    (ref=[Variable] '=' value=INT';'
+    (ref=[Variable] '=' value=(INT|'Infinity')';'
     |ref=[Variable] '=' value=BooleanValue';'
     |ref=[Variable] '=' value=STRING';'
     |ref=[Variable] '=' value=OBJECT_OVERRIDE
@@ -181,7 +181,7 @@ BooleanExpression:
 
 
 IntegerExpression:
-    'int' name=ID ('=' value=INT)?';'
+    'int' name=ID ('=' value=(INT|'Infinity'))?';'
 ;
 
 StringExpression:

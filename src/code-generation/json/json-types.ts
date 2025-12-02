@@ -18,13 +18,6 @@ export interface StateJson {
 	properties: Array<StatePropertyJson>;
 }
 
-export type ExpressionJson = ExpressionTreeJson
-// export interface ExpressionJson {
-// 	expression: string;
-// 	variables: Array<string>;
-// 	isAssignment?: boolean; // Indicates if this expression is an assignment
-// 	returnType?: ExpressionValueType // The type of the expression, e.g., 'int', 'bool', 'string', etc.
-// }
 
 // Theoretically we could split this in multiple types, but for simplicity, we keep it in one for now
 export interface ExpressionTreeJson {
@@ -47,20 +40,20 @@ export type Operator = "Literal" | "ArrayGet" |"ArrayAppend" | "ArrayPrepend" | 
 
 export interface OutputJson {
 	port: string; // Name of the port
-	value:  Map<string, ExpressionJson>;
+	value:  Map<string, ExpressionTreeJson>;
 }
 
 export interface TransitionJson {
 	name?: string;
-	transitionCondition: ExpressionJson;
+	transitionCondition: ExpressionTreeJson;
 	transitionNewStateTypeRef: string;
-	transitionStateModifications: Array<ExpressionJson>;
+	transitionStateModifications: Array<ExpressionTreeJson>;
 }
 
 export interface StateConfigurationJson {
 	stateTypeRef: string;
 
-	timeAdvanceExpression: ExpressionJson;
+	timeAdvanceExpression: ExpressionTreeJson;
 	output: Array<OutputJson>;
 
 	transitions: Array<TransitionJson>;

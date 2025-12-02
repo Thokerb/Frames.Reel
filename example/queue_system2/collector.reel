@@ -2,6 +2,8 @@ state CollectorState {
     states: [Collecting];
     initial = Collecting;
     
+    array int arr_input = [];
+    array int waiting_time = [];
     int current_time = 0;
     // We cannot log to file in Reel, so we just accept inputs
 }
@@ -19,6 +21,7 @@ atomic model Collector {
         transitions: {
             (collect) with InPort in_event.any => {
                 state.name becomes Collecting;
+                arr_input.append(InPort in_event.creation_time);
                 // In a real simulation, we would log stats here
             }
         }

@@ -24,7 +24,7 @@
 } from "../../language/generated/ast.js";
 import {
 	AtomicModelJson, CoupledModelJson,
-	ExpressionJson, ExpressionTreeJson, ModelReferenceJson,
+	ExpressionTreeJson, ModelReferenceJson,
 	PortObjectMap, ReelJson,
 	StateConfigurationJson, StateJson,
 	StatePropertyJson, StatePropValueType,
@@ -180,8 +180,11 @@ function flattenStateProperties(
 				if (isOBJECT_OVERRIDE(prop.value) ) {
 					result.push(...flattenStateProperties(prop.value.properties, [...parentPath, prop.ref.ref!.name]));
 				} else {
+					
+					const prop2 = {...prop.ref.ref!, value: prop.value} as Variable;
+
 					// TODO check
-					result.push(...flattenStateProperties([prop.ref.ref!], [...parentPath]));
+					result.push(...flattenStateProperties([prop2], [...parentPath]));
 				}
 			}
 			break;
@@ -339,7 +342,7 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 					value: GetValues(variable),
 					variableName: name,
 				},
-				right: ToExpressionJson(expr.propertyArrayAccess.value!)
+				right: ToExpressionTreeJson(expr.propertyArrayAccess.value!)
 			}
 		case "get":
 			return <ExpressionTreeJson> {
@@ -348,12 +351,13 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 				variableName: name,
 				operator: "ArrayGet",
 				left: <ExpressionTreeJson> {
+					operator: "Literal",
 					valueType: GetValueType(variable),
 					isLeaf: true,
 					value: GetValues(variable),
 					variableName: name,
 				},
-				right: ToExpressionJson(expr.propertyArrayAccess.index!)
+				right: ToExpressionTreeJson(expr.propertyArrayAccess.index!)
 			}
 		case "length":
 			return <ExpressionTreeJson> {
@@ -382,7 +386,7 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 					value: GetValues(variable),
 					variableName: name,
 				},
-				right: ToExpressionJson(expr.propertyArrayAccess.value!)
+				right: ToExpressionTreeJson(expr.propertyArrayAccess.value!)
 			}
 		case "remove":
 			return <ExpressionTreeJson> {
@@ -397,7 +401,7 @@ function ArrayExpressionToExpressionTreeJson(variable: ArrayExpression, expr: Va
 					value: GetValues(variable),
 					variableName: name,
 				},
-				right: ToExpressionJson(expr.propertyArrayAccess.index!)
+				right: ToExpressionTreeJson(expr.propertyArrayAccess.index!)
 			}
 			break;
 
@@ -462,7 +466,7 @@ function PortReferenceToExpressionTreeJson(expr: PortReference): ExpressionTreeJ
 
 	return <ExpressionTreeJson>{
 		operator: "Literal",
-		valueType: MapPortType(port.valueType),
+		valueType: mapSelector(expr.selector) === "any" ? "BooleanExpression" : MapPortType(port.valueType),
 		isLeaf: true,
 		portObjectPropertyName: getPortObjectPropertyName(expr),
 		portAccessor: mapSelector(expr.selector),
@@ -473,8 +477,8 @@ function PortReferenceToExpressionTreeJson(expr: PortReference): ExpressionTreeJ
 }
 
 function BinaryExpressionToExpressionTreeJson(expr: BinaryExpression): ExpressionTreeJson {
-	const left = ToExpressionJson(expr.left);
-	const right = ToExpressionJson(expr.right);
+	const left = ToExpressionTreeJson(expr.left);
+	const right = ToExpressionTreeJson(expr.right);
 
 	return {
 		operator: expr.operator,
@@ -528,7 +532,7 @@ function ParseLiteral(expr: BinaryExpression) : ExpressionTreeJson{
 	};
 }
 
-function ToExpressionJson(expr: Expression): ExpressionTreeJson {
+function ToExpressionTreeJson(expr: Expression): ExpressionTreeJson {
 
 	if (isVariableReference(expr)) {
 		return VariableReferenceToExpressionTreeJson(expr);
@@ -573,25 +577,25 @@ function ToExpressionJson(expr: Expression): ExpressionTreeJson {
 function generateTransition(tr: ReceiveConditionWithOverride): TransitionJson {
 	return {
 		name: tr.condition.name,
-		transitionCondition: tr.condition.expression !== undefined ? ToExpressionJson(tr.condition.expression) : <ExpressionTreeJson>{
+		transitionCondition: tr.condition.expression !== undefined ? ToExpressionTreeJson(tr.condition.expression) : <ExpressionTreeJson>{
 			operator: "Literal",
 			valueType: 'BooleanExpression',
 			isLeaf: true,
 			value: true
 		},
 		transitionNewStateTypeRef: tr.overrides.stateRef.ref!.name,
-		transitionStateModifications: tr.overrides.properties.map(mod => ToExpressionJson(mod))
+		transitionStateModifications: tr.overrides.properties.map(mod => ToExpressionTreeJson(mod))
 
 	}
 }
 
-function MapToExpressionJson(expressionMap: ExpressionMap): Map<string, ExpressionJson> {
-	const result = new Map<string, ExpressionJson>();
+function MapToExpressionTreeJson(expressionMap: ExpressionMap): Map<string, ExpressionTreeJson> {
+	const result = new Map<string, ExpressionTreeJson>();
 	expressionMap.mapEntries.forEach(entry => {
 		// property must only have one elem since this variable reference is to a port
 
 		const key = isVariable(entry.key.ref) ? entry.key.ref?.name : entry.key.ref!.property[0].ref!.name;
-		result.set(key, ToExpressionJson(entry.value));
+		result.set(key, ToExpressionTreeJson(entry.value));
 	});
 	return result;
 }
@@ -599,11 +603,11 @@ function MapToExpressionJson(expressionMap: ExpressionMap): Map<string, Expressi
 function generateStateConfiguration(sc: StateConfiguration): StateConfigurationJson {
 	return {
 		stateTypeRef: sc.stateRef.ref!.name,
-		timeAdvanceExpression: ToExpressionJson(sc.timeAdvance.timeAdvance),
+		timeAdvanceExpression: ToExpressionTreeJson(sc.timeAdvance.timeAdvance),
 		transitions: sc.transitions.map(tr => generateTransition(tr)),
 		output: sc.output.map(out => ({
 			port: out.portRef.ref!.name,
-			value: out.expressionMap !== undefined  ? MapToExpressionJson(out.expressionMap) : new Map<string,ExpressionJson>([["",ToExpressionJson(out.expression!)]])
+			value: out.expressionMap !== undefined  ? MapToExpressionTreeJson(out.expressionMap) : new Map<string,ExpressionTreeJson>([["",ToExpressionTreeJson(out.expression!)]])
 		}))
 	}
 }

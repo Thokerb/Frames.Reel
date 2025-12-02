@@ -16,14 +16,17 @@ coupled model QueueSystem {
     Processor p0 with ProcessorState {
         initial = Idle;
         proc_id = 0;
+        speed = 2;
     }
     Processor p1 with ProcessorState {
         initial = Idle;
         proc_id = 1;
+        speed = 4;
     }
     Processor p2 with ProcessorState {
         initial = Idle;
         proc_id = 2;
+        speed = 5;
     }
 
     // Couplings

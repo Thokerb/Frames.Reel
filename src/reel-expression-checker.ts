@@ -72,6 +72,10 @@ export class ReelExpressionChecker {
 					which: 'left'
 				}
 			}
+
+			if(node?.selector === "any"){
+				return "BooleanExpression";
+			}
 			
 			switch (node.property?.ref?.valueType){
 				case "bool":
