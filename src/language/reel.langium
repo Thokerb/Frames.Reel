@@ -235,13 +235,14 @@ Primary infers Expression:
     STRING |
     BooleanValue |
     INT |
+    'CurrentTime' |
     'Infinity' |
     VariableReference |
     PortReference
 ;
 
 PortReference:
-    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? ('.'objectProperty=[VariableType:ID])? )
+    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|'all'|INT)) ('.'objectProperty=[VariableType:ID])? )
 ;
 
 

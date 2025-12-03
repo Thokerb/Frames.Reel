@@ -443,19 +443,41 @@ function getPortObjectPropertyName(expr: PortReference): string | undefined {
         return ref.property[0].ref?.name;
     }
 	return ref?.name;
-
-    throw new Error("objectProperty.ref must be a VariableReference");
 }
 
-function mapSelector(selector: "any" | "first" | number | undefined) {
-
-	if (selector === undefined) {
-		return undefined;
-	}
-	if (selector === "any" || selector === "first") {
+function mapSelector(selector: "any" | "first" | 'all' | number) {
+	
+	if (selector === "any" || selector === "first" || selector === 'all') {
 		return selector;
 	}
 	return "index";
+}
+
+function MapValueTypeForPort(expr: PortReference) {
+	const port = expr.property.ref;
+	if(port === undefined) {
+		throw new Error("Port reference is undefined");
+	}
+	const selector = expr.selector;
+	
+	if(selector === "any"){
+		return "BooleanExpression";
+	}
+	
+	if(isOBJECT(port.valueType)){
+		return port.valueType.properties.find(x => x.name === getPortObjectPropertyName(expr))?.$type
+	}
+
+	switch (port.valueType){
+		case "bool":
+			return 'BooleanExpression';
+		case "int":
+			return 'IntegerExpression';
+		case "string":
+			return 'StringExpression';
+		default:
+			throw new Error("Unsupported port value type: "+port.valueType);
+	}
 }
 
 function PortReferenceToExpressionTreeJson(expr: PortReference): ExpressionTreeJson {
@@ -466,7 +488,7 @@ function PortReferenceToExpressionTreeJson(expr: PortReference): ExpressionTreeJ
 
 	return <ExpressionTreeJson>{
 		operator: "Literal",
-		valueType: mapSelector(expr.selector) === "any" ? "BooleanExpression" : MapPortType(port.valueType),
+		valueType: MapValueTypeForPort(expr),
 		isLeaf: true,
 		portObjectPropertyName: getPortObjectPropertyName(expr),
 		portAccessor: mapSelector(expr.selector),
@@ -501,6 +523,14 @@ function ParseLiteral(expr: BinaryExpression) : ExpressionTreeJson{
 			valueType: 'IntegerExpression',
 			isLeaf: true,
 			value: 'Infinity'
+		};
+	}
+	if(value === "CurrentTime") {
+		return <ExpressionTreeJson>{
+			operator: "Literal",
+			valueType: 'IntegerExpression',
+			isLeaf: true,
+			value: 'CurrentTime'
 		};
 	}
 	

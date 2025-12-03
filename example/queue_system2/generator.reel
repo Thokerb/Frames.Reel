@@ -4,8 +4,8 @@ state GeneratorState {
     
     // Configuration
     int num_to_generate = 500;
-    int fixed_size = 20; 
-    int inter_arrival_time = 30;
+    int fixed_size = 40; 
+    int inter_arrival_time = 20;
     
     // Internal State
     int current_time = 0;

@@ -4,15 +4,14 @@ state CollectorState {
     
     array int arr_input = [];
     array int waiting_time = [];
-    int current_time = 0;
-    // We cannot log to file in Reel, so we just accept inputs
+    int time;
 }
 
-atomic model Collector {
+export atomic model Collector {
     state: CollectorState
     
     section Ports {
-        {int size; int creation_time;} InPort in_event;
+        {int size; int creation_time;int time_in_queue;int ct;} InPort in_event;
     }
 
     stateDefinition Collecting: {
@@ -21,8 +20,8 @@ atomic model Collector {
         transitions: {
             (collect) with InPort in_event.any => {
                 state.name becomes Collecting;
-                arr_input.append(InPort in_event.creation_time);
-                // In a real simulation, we would log stats here
+                time = CurrentTime;
+                arr_input.append(InPort in_event.all.time_in_queue);
             }
         }
         output: {}

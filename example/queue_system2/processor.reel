@@ -12,6 +12,7 @@ state ProcessorState {
     // Processing Logic
     int processing_time = 0;
     int speed = 0;
+
 }
 
 export atomic model Processor {
@@ -21,7 +22,7 @@ export atomic model Processor {
 
     section Ports {
         {int size; int creation_time;} InPort in_proc;
-        {int size; int creation_time;} OutPort out_proc;
+        {int size; int creation_time;int time_in_queue;int ct;} OutPort out_proc;
         int OutPort out_finished;
     }
 
@@ -32,12 +33,10 @@ export atomic model Processor {
             (startJob) with InPort in_proc.any => {
                 state.name becomes Processing;
                 // Read input object properties
-                current_job_size = InPort in_proc.size;
-                
-                current_job_creation = InPort in_proc.creation_time;
-                
+                current_job_size = InPort in_proc.first.size;
+                current_job_creation = InPort in_proc.first.creation_time;
                 // Calculate time: 20.0 + max(1.0, size / speed)
-                processing_time = 20 + (current_job_size / speed); 
+                processing_time = current_job_size / speed; 
             }
         }
         output: {}
@@ -57,8 +56,10 @@ export atomic model Processor {
             // Output the processed job
             out_finished = proc_id;
             out_proc = {
-                size: current_job_size,
-                creation_time: current_job_creation
+                size: processing_time,
+                creation_time: current_job_creation,
+                ct: CurrentTime,
+                time_in_queue: CurrentTime - current_job_creation - processing_time
             };
         }
     }

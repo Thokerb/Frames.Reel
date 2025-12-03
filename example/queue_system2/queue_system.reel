@@ -1,11 +1,15 @@
 import atomic Generator from "./generator.reel"
 import atomic Processor from "./processor.reel"
 import atomic Queue from "./queue.reel"
+import atomic Collector from "./collector.reel"
 
 coupled model QueueSystem {
 
     // 1. Instantiate Generator
-    Generator gen with GeneratorState
+    Generator gen with GeneratorState {
+        initial = Generating;
+        fixed_size = 400;
+    }
 
     // 2. Instantiate Queue
     Queue queue with QueueState {
@@ -29,6 +33,8 @@ coupled model QueueSystem {
         speed = 5;
     }
 
+    Collector col with CollectorState
+
     // Couplings
     // Generator -> Queue
     Connect gen.out_event to queue.in_event
@@ -42,4 +48,9 @@ coupled model QueueSystem {
     Connect p0.out_finished to queue.in_finish
     Connect p1.out_finished to queue.in_finish
     Connect p2.out_finished to queue.in_finish
+
+    // Processors -> Collector (Data collection)
+    Connect p0.out_proc to col.in_event
+    Connect p1.out_proc to col.in_event
+    Connect p2.out_proc to col.in_event
 }

@@ -34,25 +34,25 @@ export atomic model Queue {
 
             (jobArrivesAndProcFinish) with InPort in_event.any and InPort in_finish.any => {
                 state.name becomes CheckQueue; // Triggers immediate re-eval if idle procs exist
-                waiting_time = 1; // todo check 0/1 error
-                q_sizes.append(InPort in_event.size);
-                q_times.append(InPort in_event.creation_time);
-                idle_procs.append(InPort in_finish);
+                waiting_time = 0; // todo check 0/1 error
+                q_sizes.append(InPort in_event.all.size);
+                q_times.append(InPort in_event.all.creation_time);
+                idle_procs.append(InPort in_finish.all);
             }
 
             // 1. External: Job Arrives
             (jobArrives) with InPort in_event.any => {
                 state.name becomes CheckQueue; // Triggers immediate re-eval if idle procs exist
-                waiting_time = 1; // todo check 0/1 error
-                q_sizes.append(InPort in_event.size);
-                q_times.append(InPort in_event.creation_time);
+                waiting_time = 0; // todo check 0/1 error
+                q_sizes.append(InPort in_event.all.size);
+                q_times.append(InPort in_event.all.creation_time);
             }
 
             // 2. External: Processor Finishes
             (procFree) with InPort in_finish.any => {
                 state.name becomes CheckQueue;
-                waiting_time = 1;
-                idle_procs.append(InPort in_finish);
+                waiting_time = 0;
+                idle_procs.append(InPort in_finish.all);
             }
 
 
@@ -99,7 +99,7 @@ export atomic model Queue {
     // Ephemeral states to send data to specific ports
 
     stateDefinition EmitProc0: {
-        time-advance: 1 TimeUnits
+        time-advance: 0 TimeUnits
         transitions: {
             (done) => { state.name becomes CheckQueue; }
         }
@@ -109,7 +109,7 @@ export atomic model Queue {
     }
 
     stateDefinition EmitProc1: {
-        time-advance: 1 TimeUnits
+        time-advance: 0 TimeUnits
 
         transitions: {
             (done) => { state.name becomes CheckQueue; }
@@ -120,7 +120,7 @@ export atomic model Queue {
     }
 
     stateDefinition EmitProc2: {
-        time-advance: 1 TimeUnits
+        time-advance: 0 TimeUnits
         transitions: {
             (done) => { state.name becomes CheckQueue; }
         }

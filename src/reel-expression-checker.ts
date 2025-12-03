@@ -126,6 +126,14 @@ export class ReelExpressionChecker {
 		}
 
 		// check if text is a number
+
+		if(text === 'CurrentTime'){
+			return 'IntegerExpression';
+		}
+		if(text === 'Infinity'){
+			return 'IntegerExpression';
+		}
+
 		if (!isNaN(text)) {
 			return 'IntegerExpression';
 		}
