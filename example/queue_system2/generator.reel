@@ -1,0 +1,55 @@
+state GeneratorState {
+    states: [Generating | Stopped];
+    initial = Generating;
+    
+    // Configuration
+    int num_to_generate = 500;
+    int fixed_size = 40; 
+    int inter_arrival_time = 20;
+    
+    // Internal State
+    int current_time = 0;
+}
+
+export atomic model Generator {
+    state: GeneratorState {
+        initial = Generating;
+    }
+
+    section Ports {
+        // Outputting a Job object
+        {int size; int creation_time;} OutPort out_event; 
+    }
+
+    stateDefinition Generating: {
+        time-advance: inter_arrival_time TimeUnits
+        
+
+
+        transitions: {
+            (stop) with num_to_generate <= 1 => {
+                state.name becomes Stopped;
+                num_to_generate = 0;
+                current_time = current_time + inter_arrival_time;
+            }
+            (next) => {
+                state.name becomes Generating;
+                num_to_generate = num_to_generate - 1;
+                current_time = current_time + inter_arrival_time;
+            }
+        }
+        output: {
+            // Create Job with current time + wait time
+            out_event = { 
+                size : fixed_size, 
+                creation_time : current_time + inter_arrival_time 
+            };
+        }
+    }
+    
+    stateDefinition Stopped: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {}
+    }
+}

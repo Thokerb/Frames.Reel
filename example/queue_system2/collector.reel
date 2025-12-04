@@ -1,0 +1,30 @@
+state CollectorState {
+    states: [Collecting];
+    initial = Collecting;
+    
+    array int arr_input = [];
+    array int waiting_time = [];
+    int time;
+}
+
+export atomic model Collector {
+    state: CollectorState
+    
+    section Ports {
+        {int size; int creation_time;int time_in_queue;int ct;} InPort in_event;
+    }
+
+    stateDefinition Collecting: {
+        time-advance: Infinity TimeUnits
+        
+        transitions: {
+            (collect) with InPort in_event.any => {
+                state.name becomes Collecting;
+                time = CurrentTime;
+                arr_input.append(InPort in_event.all.time_in_queue);
+                waiting_time.append(InPort in_event.all.creation_time);
+            }
+        }
+        output: {}
+    }
+}

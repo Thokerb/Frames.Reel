@@ -1,4 +1,4 @@
-<svg class="railroad-diagram" xmlns="http://www.w3.org/2000/svg" width="337" height="242" viewBox="0 0 337 242">
+<svg class="railroad-diagram" xmlns="http://www.w3.org/2000/svg" width="337" height="272" viewBox="0 0 337 272">
 <style>
     svg.railroad-diagram {
         background-color: hsl(30,20%,95%);
@@ -85,28 +85,36 @@
 <path d="M276 121a10 10 0 0 0 10 -10v-70a10 10 0 0 1 10 -10"></path>
 <path d="M40 31a10 10 0 0 1 10 10v100a10 10 0 0 0 10 10"></path>
 <g>
-<path d="M60 151h66"></path>
-<path d="M210 151h66"></path>
-<rect x="126" y="140" width="84" height="22" rx="10" ry="10"></rect>
-<text x="168" y="155">Infinity</text>
+<path d="M60 151h54"></path>
+<path d="M222 151h54"></path>
+<rect x="114" y="140" width="108" height="22" rx="10" ry="10"></rect>
+<text x="168" y="155">CurrentTime</text>
 </g>
 <path d="M276 151a10 10 0 0 0 10 -10v-100a10 10 0 0 1 10 -10"></path>
 <path d="M40 31a10 10 0 0 1 10 10v130a10 10 0 0 0 10 10"></path>
 <g>
-<path d="M60 181h30"></path>
-<path d="M246 181h30"></path>
-<rect x="90" y="170" width="156" height="22"></rect>
-<text x="168" y="185">VariableReference</text>
+<path d="M60 181h66"></path>
+<path d="M210 181h66"></path>
+<rect x="126" y="170" width="84" height="22" rx="10" ry="10"></rect>
+<text x="168" y="185">Infinity</text>
 </g>
 <path d="M276 181a10 10 0 0 0 10 -10v-130a10 10 0 0 1 10 -10"></path>
 <path d="M40 31a10 10 0 0 1 10 10v160a10 10 0 0 0 10 10"></path>
 <g>
-<path d="M60 211h46"></path>
-<path d="M230 211h46"></path>
-<rect x="106" y="200" width="124" height="22"></rect>
-<text x="168" y="215">PortReference</text>
+<path d="M60 211h30"></path>
+<path d="M246 211h30"></path>
+<rect x="90" y="200" width="156" height="22"></rect>
+<text x="168" y="215">VariableReference</text>
 </g>
 <path d="M276 211a10 10 0 0 0 10 -10v-160a10 10 0 0 1 10 -10"></path>
+<path d="M40 31a10 10 0 0 1 10 10v190a10 10 0 0 0 10 10"></path>
+<g>
+<path d="M60 241h46"></path>
+<path d="M230 241h46"></path>
+<rect x="106" y="230" width="124" height="22"></rect>
+<text x="168" y="245">PortReference</text>
+</g>
+<path d="M276 241a10 10 0 0 0 10 -10v-190a10 10 0 0 1 10 -10"></path>
 </g>
 <path d="M 296 31 h 20 m -10 -10 v 20 m 10 -20 v 20"></path>
 </g>

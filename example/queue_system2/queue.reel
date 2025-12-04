@@ -1,0 +1,131 @@
+state QueueState {
+    states: [CheckQueue | EmitProc0 | EmitProc1 | EmitProc2];
+    initial = CheckQueue;
+
+    // Parallel arrays to store Job Objects
+    array int q_sizes = [];
+    array int q_times = [];
+
+    // Array of idle processor IDs. Start with 0, 1, 2
+    array int idle_procs = [0, 1, 2];
+    
+    int temp_size = 0;
+    int temp_time = 0;
+    int waiting_time = Infinity;
+}
+
+export atomic model Queue {
+    state: QueueState
+
+    section Ports {
+        {int size; int creation_time;} InPort in_event;
+        int InPort in_finish;
+        
+        // 3 Processors
+        {int size; int creation_time;} OutPort proc_0;
+        {int size; int creation_time;} OutPort proc_1;
+        {int size; int creation_time;} OutPort proc_2;
+    }
+
+    stateDefinition CheckQueue: {
+        time-advance: waiting_time TimeUnits
+
+        transitions: {
+
+            (jobArrivesAndProcFinish) with InPort in_event.any and InPort in_finish.any => {
+                state.name becomes CheckQueue; // Triggers immediate re-eval if idle procs exist
+                waiting_time = 0; // todo check 0/1 error
+                q_sizes.append(InPort in_event.all.size);
+                q_times.append(InPort in_event.all.creation_time);
+                idle_procs.append(InPort in_finish.all);
+            }
+
+            // 1. External: Job Arrives
+            (jobArrives) with InPort in_event.any => {
+                state.name becomes CheckQueue; // Triggers immediate re-eval if idle procs exist
+                waiting_time = 0; // todo check 0/1 error
+                q_sizes.append(InPort in_event.all.size);
+                q_times.append(InPort in_event.all.creation_time);
+            }
+
+            // 2. External: Processor Finishes
+            (procFree) with InPort in_finish.any => {
+                state.name becomes CheckQueue;
+                waiting_time = 0;
+                idle_procs.append(InPort in_finish.all);
+            }
+
+
+
+            // 3. Internal: Route to Processor 0
+            (routeTo0) with q_sizes.length() > 0 and idle_procs.length() > 0 and idle_procs.get(0) == 0 => {
+                state.name becomes EmitProc0;
+                // Prepare temp vars for output
+                temp_size = q_sizes.get(0);
+                temp_time = q_times.get(0);
+                // Remove from queues
+                q_sizes.remove(0);
+                q_times.remove(0);
+                idle_procs.remove(0);
+            }
+
+            // 4. Internal: Route to Processor 1
+            (routeTo1) with q_sizes.length() > 0 and idle_procs.length() > 0 and idle_procs.get(0) == 1 => {
+                state.name becomes EmitProc1;
+                temp_size = q_sizes.get(0);
+                temp_time = q_times.get(0);
+                q_sizes.remove(0);
+                q_times.remove(0);
+                idle_procs.remove(0);
+            }
+
+            // 5. Internal: Route to Processor 2
+            (routeTo2) with q_sizes.length() > 0 and idle_procs.length() > 0 and idle_procs.get(0) == 2 => {
+                state.name becomes EmitProc2;
+                temp_size = q_sizes.get(0);
+                temp_time = q_times.get(0);
+                q_sizes.remove(0);
+                q_times.remove(0);
+                idle_procs.remove(0);
+            }
+            (noJobsOrnoProvs) => {
+                state.name becomes CheckQueue;
+                waiting_time = Infinity;
+            }
+        }
+        output: {}
+    }
+
+    // Ephemeral states to send data to specific ports
+
+    stateDefinition EmitProc0: {
+        time-advance: 0 TimeUnits
+        transitions: {
+            (done) => { state.name becomes CheckQueue; }
+        }
+        output: {
+            proc_0 = { size: temp_size,  creation_time: temp_time };
+        }
+    }
+
+    stateDefinition EmitProc1: {
+        time-advance: 0 TimeUnits
+
+        transitions: {
+            (done) => { state.name becomes CheckQueue; }
+        }
+        output: {
+            proc_1 = {  size: temp_size,  creation_time: temp_time };
+        }
+    }
+
+    stateDefinition EmitProc2: {
+        time-advance: 0 TimeUnits
+        transitions: {
+            (done) => { state.name becomes CheckQueue; }
+        }
+        output: {
+            proc_2 = {  size: temp_size,  creation_time: temp_time };
+        }
+    }
+}

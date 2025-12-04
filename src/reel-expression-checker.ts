@@ -1,18 +1,54 @@
 ﻿import {
 	BinaryExpression,
-	Expression,
+	Expression, isArrayExpression,
 	isBinaryExpression, isOBJECT,
 	isPortReference,
+	isVariable,
 	isVariableReference,
-	PortReference, PortType, type Variable
+	PortReference, PortType, Variable, VariableReference
 } from "./language/generated/ast.js";
-import type {Reference, ValidationAcceptor} from "langium";
+import type { ValidationAcceptor} from "langium";
 import {ExpressionValueType} from "./code-generation/json/reel-json-generate.js";
+
+function MapExpressionValueType(type: "bool" | "int" | "string"): ExpressionValueType {
+	switch (type) {
+		case "bool":
+			return 'BooleanExpression';
+		case "int":
+			return 'IntegerExpression';
+		case "string":
+			return 'StringExpression';
+	}
+}
 
 export class ReelExpressionChecker {
 
 
-	static inferType(node: Reference<Variable>): ExpressionValueType | "unknown" {
+	static inferType(nodeRef: VariableReference | Variable): ExpressionValueType | "unknown" {
+
+
+		if(isVariable(nodeRef)) {
+			const node = nodeRef;
+			return node.$type;
+		}
+
+		const node = nodeRef.property[nodeRef.property.length - 1];
+		
+		if(isArrayExpression(node.ref) && nodeRef.propertyArrayAccess !== undefined) {
+			switch (nodeRef.propertyArrayAccess.type) {
+				case "append":
+					return "VoidExpression"
+				case "get":
+					return MapExpressionValueType(node.ref.type)
+				case "length":
+					return "IntegerExpression";
+				case "push":
+					return "VoidExpression"
+				case "remove":
+					return "VoidExpression"
+			}
+		}
+		
 		return node.ref?.$type ?? 'unknown';
 	}
 	
@@ -36,6 +72,10 @@ export class ReelExpressionChecker {
 					which: 'left'
 				}
 			}
+
+			if(node?.selector === "any"){
+				return "BooleanExpression";
+			}
 			
 			switch (node.property?.ref?.valueType){
 				case "bool":
@@ -48,13 +88,25 @@ export class ReelExpressionChecker {
 			}
 			
 			if(isOBJECT(node.property?.ref?.valueType)){
-				return "ObjectExpression";
+
+				const ref = node.objectProperty?.ref;
+
+				if(ref === undefined){
+					return <Error>{
+						error: `Object property is undefined.`,
+						node: node,
+						property: 'objectProperty',
+						which: 'left'
+					}
+				}
+
+				return this.inferType(ref);
 			}
 		}
 
 		if (isVariableReference(node)){
 			// get last element of the path
-			return this.inferType(node.property[node.property.length - 1])
+			return this.inferType(node)
 		}
 		if(isBinaryExpression(node))
 		{
@@ -74,6 +126,14 @@ export class ReelExpressionChecker {
 		}
 
 		// check if text is a number
+
+		if(text === 'CurrentTime'){
+			return 'IntegerExpression';
+		}
+		if(text === 'Infinity'){
+			return 'IntegerExpression';
+		}
+
 		if (!isNaN(text)) {
 			return 'IntegerExpression';
 		}
@@ -110,7 +170,7 @@ export class ReelExpressionChecker {
 
 		if (leftType !== rightType) {
 			return <Error>{
-				error: `Type '${leftType}' is not compatible to type '${rightType}' 2.`,
+				error: `Type '${leftType}' is not compatible to type '${rightType}' 22.`,
 				node: node,
 				property: 'left',
 				which: 'left'

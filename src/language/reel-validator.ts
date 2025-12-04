@@ -190,18 +190,21 @@ export class ReelValidator {
 			return;
 		}
 		
+
+		if(def.expression === undefined){
+			return;
+		}
+
 		const rightType = ReelExpressionChecker.CheckType(def.expression);
 		if (rightType === 'unknown') {
 			accept('error', `Type '${rightType}' is not assignable to type '${port.$type}'.`, {
-				node: def,
-				property: 'expression'
+				node: def
 			});
 			return;
 		}
 		if (ReelExpressionChecker.isError(rightType)) {
 			accept('error', `Type '${rightType.error}' is not compatible to type '${rightType?.node}'.`, {
-				node: rightType.node,
-				property: rightType.property
+				node: rightType.node
 			});
 			return;
 		}
@@ -252,7 +255,7 @@ export class ReelValidator {
 
 	checkVariableDeclaration(decl: VariableOverride, accept: ValidationAcceptor): void {
 		if (decl.ref !== undefined && decl.value !== undefined) {
-			const left = ReelExpressionChecker.inferType(decl.ref);
+			const left = decl.ref.ref?.$type ?? 'unknown';
 			const right = this.inferRightType(decl.value);
 
 			if (right === 'unknown' || left === 'unknown') {
@@ -289,8 +292,14 @@ export class ReelValidator {
 
 	// we only check that it is a valid binary expression
 	binaryExpressionCheck(node: Expression | PortReference, accept: ValidationAcceptor) {
-
 		if (isPortReference(node)) {
+
+			if(node.selector !== "any" && node.$container.$type === "ReceiveCondition"){
+				accept('error', `PortReference selector must be 'any' in boolean exist check.`, {
+					node: node,
+					property: 'selector'
+				});
+			}
 			return;
 		}
 

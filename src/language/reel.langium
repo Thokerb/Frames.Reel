@@ -100,9 +100,13 @@ ExpressionMap:
     '{' (mapEntries+=MapEntry (',' mapEntries+=MapEntry)*)? '}'
 ;
 MapEntry:
-    key=[VariableReference:ID] ':' value=Expression
+    key=[VariableType:ID] ':' value=Expression
 ;
 
+// this is because it is a lot easier to provide custom variable scope
+VariableType:
+    Variable | VariableReference
+;
 
 StateDefinitionOverrides:
     ('{'
@@ -126,7 +130,7 @@ PropertiesOverride:
 ;
 
 VariableOverride:
-    (ref=[Variable] '=' value=INT';'
+    (ref=[Variable] '=' value=(INT|'Infinity')';'
     |ref=[Variable] '=' value=BooleanValue';'
     |ref=[Variable] '=' value=STRING';'
     |ref=[Variable] '=' value=OBJECT_OVERRIDE
@@ -177,7 +181,7 @@ BooleanExpression:
 
 
 IntegerExpression:
-    'int' name=ID ('=' value=INT)?';'
+    'int' name=ID ('=' value=(INT|'Infinity'))?';'
 ;
 
 StringExpression:
@@ -231,13 +235,14 @@ Primary infers Expression:
     STRING |
     BooleanValue |
     INT |
+    'CurrentTime' |
     'Infinity' |
     VariableReference |
     PortReference
 ;
 
 PortReference:
-    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|INT))? )
+    (portType=PortType property=[Port:ID] ('.'selector=('first'|'any'|'all'|INT)) ('.'objectProperty=[VariableType:ID])? )
 ;
 
 

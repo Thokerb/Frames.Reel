@@ -1,0 +1,66 @@
+state ProcessorState {
+    states: [Idle | Processing];
+    initial = Idle;
+
+    // Processor ID (overridden on instantiation)
+    int proc_id = 0;
+    
+    // Current Job Details
+    int current_job_size = 0;
+    int current_job_creation = 0;
+    
+    // Processing Logic
+    int processing_time = 0;
+    int speed = 0;
+
+}
+
+export atomic model Processor {
+    state: ProcessorState {
+        initial = Idle;
+    }
+
+    section Ports {
+        {int size; int creation_time;} InPort in_proc;
+        {int size; int creation_time;int time_in_queue;int ct;} OutPort out_proc;
+        int OutPort out_finished;
+    }
+
+    stateDefinition Idle: {
+        time-advance: Infinity TimeUnits
+        
+        transitions: {
+            (startJob) with InPort in_proc.any => {
+                state.name becomes Processing;
+                // Read input object properties
+                current_job_size = InPort in_proc.first.size;
+                current_job_creation = InPort in_proc.first.creation_time;
+                // Calculate time: 20.0 + max(1.0, size / speed)
+                processing_time = current_job_size / speed; 
+            }
+        }
+        output: {}
+    }
+
+    stateDefinition Processing: {
+        time-advance: processing_time TimeUnits
+
+
+        transitions: {
+            (finish) => {
+                state.name becomes Idle;
+            }
+        }
+        
+        output: {
+            // Output the processed job
+            out_finished = proc_id;
+            out_proc = {
+                size: processing_time,
+                creation_time: current_job_creation,
+                ct: CurrentTime,
+                time_in_queue: CurrentTime - current_job_creation - processing_time
+            };
+        }
+    }
+}
