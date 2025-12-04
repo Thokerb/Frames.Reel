@@ -41,9 +41,9 @@ export atomic model BlinkingLightModel2 {
      stateDefinition on: {
          time-advance: count+3 TimeUnits
          transitions: {
-             (tr1) with InPort awasd < 22222 and InPort awasd > 2 or engine.company == "tesla" => {
+             (tr1) with InPort awasd.first < 22222 and InPort awasd.first > 2 or engine.company == "tesla" => {
                  state.name becomes kabumm;
-                 engine.power = InPort awasd;
+                 engine.power = InPort awasd.first;
              }
              (tr2) with age => {
                  state.name becomes off;

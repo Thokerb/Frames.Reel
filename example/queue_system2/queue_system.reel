@@ -9,6 +9,7 @@ coupled model QueueSystem {
     Generator gen with GeneratorState {
         initial = Generating;
         fixed_size = 400;
+        inter_arrival_time= 20;
     }
 
     // 2. Instantiate Queue
@@ -20,17 +21,17 @@ coupled model QueueSystem {
     Processor p0 with ProcessorState {
         initial = Idle;
         proc_id = 0;
-        speed = 2;
+        speed = 4;
     }
     Processor p1 with ProcessorState {
         initial = Idle;
         proc_id = 1;
-        speed = 4;
+        speed = 5;
     }
     Processor p2 with ProcessorState {
         initial = Idle;
         proc_id = 2;
-        speed = 5;
+        speed = 10;
     }
 
     Collector col with CollectorState

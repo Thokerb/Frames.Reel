@@ -9,9 +9,9 @@ state BlinkingLightStateBR {
 export atomic model BlinkingLightAtomicModelBR {
     state: BlinkingLightStateBR {
         initial = On;
-        MaxCycles = 0;
+        MaxCycles = 5;
         CurrentCycle = 0;
-        WaitingTime = 2;
+        WaitingTime = 3;
     }
 
     section Ports {

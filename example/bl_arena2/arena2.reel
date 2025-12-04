@@ -11,7 +11,6 @@ coupled model BlinkingLightArena2 {
 
     BlinkingLightAtomicModelBR bl12 with BlinkingLightStateBR {
         initial = FinishedByItself;
-        
     }
     
     CArena arena

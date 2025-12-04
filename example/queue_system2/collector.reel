@@ -22,6 +22,7 @@ export atomic model Collector {
                 state.name becomes Collecting;
                 time = CurrentTime;
                 arr_input.append(InPort in_event.all.time_in_queue);
+                waiting_time.append(InPort in_event.all.creation_time);
             }
         }
         output: {}

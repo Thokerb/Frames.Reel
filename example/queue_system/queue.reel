@@ -57,7 +57,7 @@ atomic model Queue2 {
 
         transitions: {
             // Incoming event while processing: enqueue
-            (in_event) with InPort in_event => {
+            (in_event) with InPort in_event.any => {
                 state.name becomes Busy;
                 queue.get(0);
                 queue.remove(queue.length());
@@ -65,7 +65,7 @@ atomic model Queue2 {
             }
 
             // Processor finishes
-            (in_finish) with InPort in_finish => {
+            (in_finish) with InPort in_finish.any => {
                 state.name becomes Busy;
 
 
