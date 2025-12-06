@@ -1,0 +1,296 @@
+state RoadSegmentState {
+    // UPDATED: Split AnswerUpstream into 3 specific states
+    states: [Idle | CheckNextSegment | Occupied | AnswerEmpty | AnswerBlocked | AnswerTime | Crashed];
+    initial = Idle;
+    
+    // Configuration
+    int road_length = 200; 
+    // int v_max_on_road = 20;
+    int observe_delay = 10; 
+
+    // Logic Flags
+    bool query_sent = false; 
+    
+    // Physics State
+    int t_until_empty = Infinity; 
+    int time_until_car_leaves = Infinity;
+    
+    // Car Physics
+
+    object car = {
+        int id;
+        int v;
+        int v_pref;
+        int v_max;
+        int v_min;
+        int entry_time = 0;
+        int distance_travelled = 0;
+        int creation_time = 0;
+    }
+    
+    // Calculation Helpers
+    int elapsed = 0;
+    int xi = 0;
+    int remaining_x = 0;
+    int t_no_coll = 0;
+    int v_new = 0;
+
+    bool prev_wait_for_answer = false;
+    
+    array int cars_present = [];
+}
+
+export atomic model RoadSegment {
+    state: RoadSegmentState {
+        initial = Idle;
+    }
+
+    section Ports {
+        {int car_id; int v_pref; int v_max; int v_min; int departure_time; int distance_travelled; int v; int creation_time;} InPort car_in;
+        {int car_id; int v_pref; int v_max; int v_min; int departure_time; int distance_travelled; int v; int creation_time;} OutPort car_out; 
+        
+        bool OutPort query;      
+        int InPort qSack;        
+        bool InPort qRecv;       
+        int OutPort qSendAck;    
+    }
+
+    // 1. IDLE STATE
+    stateDefinition Idle: {
+        time-advance: Infinity TimeUnits
+
+        transitions: {
+            (carEnter) with InPort car_in.any and cars_present.length() == 0 => {
+                state.name becomes CheckNextSegment;
+                query_sent = false;
+                
+                car.id = InPort car_in.first.car_id;
+                car.v_pref = InPort car_in.first.v_pref;
+                car.v_max = InPort car_in.first.v_max;
+                car.v_min = InPort car_in.first.v_min;
+                car.entry_time = CurrentTime;
+                car.creation_time = InPort car_in.first.creation_time;
+                car.distance_travelled = InPort car_in.first.distance_travelled;
+                car.v = InPort car_in.first.v; 
+                
+                t_until_empty = Infinity; 
+                cars_present.push(car.id);
+            }
+            
+            // LOGIC CHANGE: Idle always means empty -> Go to AnswerEmpty
+            (receiveQuery) with InPort qRecv.any => {
+                state.name becomes AnswerEmpty;
+            }
+            
+            (carCollision) with InPort car_in.any and cars_present.length() > 0 => {
+                state.name becomes Crashed;
+            }
+        }
+        output: {} 
+    }
+
+    // 2. CHECK NEXT SEGMENT
+    stateDefinition CheckNextSegment: {
+        time-advance: observe_delay TimeUnits
+
+        transitions: {
+            // A1. Ack received EARLY (Next segment EMPTY/Fast)
+            (receiveAckGo) with InPort qSack.any => {
+                state.name becomes Occupied;
+                query_sent = true; 
+                t_no_coll = InPort qSack.first;
+                elapsed = CurrentTime - car.entry_time;
+                xi = elapsed * car.v;
+                remaining_x = road_length - xi;// remaining_x /
+                v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
+                v_new =  v_new > t_no_coll ? v_new : t_no_coll;  
+                v_new = v_new > car.v_max ? car.v_max : v_new;
+                v_new = v_new < car.v_min ? car.v_min : v_new;
+                car.v = v_new;
+                time_until_car_leaves =  v_new;
+                t_until_empty = time_until_car_leaves;
+            }
+
+            // LOGIC CHANGE: In delay phase, we don't know our speed. 
+            // We must treat this as "Blocked" (Infinity) to prevent crashes.
+            (receiveQuery) with InPort qRecv.any => {
+                state.name becomes AnswerBlocked;
+            }
+
+            (sendQuery) => {
+                state.name becomes Occupied;
+                query_sent = true;
+                time_until_car_leaves = Infinity; 
+                t_until_empty = Infinity;
+            }
+        }
+        
+        output: {
+            query = true;
+        }
+    }
+
+    // 3. OCCUPIED
+    stateDefinition Occupied: {
+        time-advance: time_until_car_leaves TimeUnits
+
+        transitions: {
+
+
+            // AA1. Ack Received (Fast or slow)
+            (receiveAckGoAndPrevWait) with InPort qSack.any and prev_wait_for_answer => {
+                state.name becomes AnswerTime;
+                t_no_coll = InPort qSack.first;
+                elapsed = CurrentTime - car.entry_time;
+                xi = elapsed * car.v;
+                remaining_x = road_length - xi;// remaining_x /
+                v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
+                v_new =  v_new > t_no_coll ? v_new : t_no_coll;  
+                v_new = v_new > car.v_max ? car.v_max : v_new;
+                v_new = v_new < car.v_min ? car.v_min : v_new;
+                car.v = v_new;
+                time_until_car_leaves =  v_new;
+                t_until_empty = time_until_car_leaves;
+            }
+
+            // A1. Ack Received (Fast)
+            (receiveAckGo) with InPort qSack.any  => {
+                state.name becomes Occupied;
+                t_no_coll = InPort qSack.first;
+                elapsed = CurrentTime - car.entry_time;
+                xi = elapsed * car.v;
+                remaining_x = road_length - xi;// remaining_x /
+                v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
+                v_new =  v_new > t_no_coll ? v_new : t_no_coll;   
+                v_new = v_new > car.v_max ? car.v_max : v_new;
+                v_new = v_new < car.v_min ? car.v_min : v_new;
+                car.v = v_new;
+                time_until_car_leaves = v_new;
+                t_until_empty = time_until_car_leaves;
+            }
+
+            // LOGIC CHANGE: Split Receive Query based on Physics State
+
+            // B1. We are waiting for Ack (Infinity) -> We must answer Infinity
+            (receiveQueryWait) with InPort qRecv.any and time_until_car_leaves == Infinity => {
+                 state.name becomes AnswerBlocked;
+            }
+
+            // B2. We are moving (Not Infinity) -> We can answer the real time
+            (receiveQueryMove) with InPort qRecv.any and time_until_car_leaves != Infinity => {
+                 state.name becomes AnswerTime;
+                 
+                 // Update physics
+                 elapsed = CurrentTime - car.entry_time;
+                 xi = elapsed * car.v;
+                 remaining_x = road_length - xi;
+                 v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
+                 v_new =  v_new > t_no_coll ? v_new : t_no_coll;   
+                 v_new = v_new > car.v_max ? car.v_max : v_new;
+                 v_new = v_new < car.v_min ? car.v_min : v_new;
+                 car.v = v_new;
+                 time_until_car_leaves = v_new;
+                 t_until_empty = time_until_car_leaves;
+            }
+            
+            (collision) with InPort car_in.any => {
+                state.name becomes Crashed;
+                car.v = 0;
+                cars_present.push(InPort car_in.first.car_id);
+            }
+
+            (carExit) => {
+                state.name becomes AnswerTime;
+                cars_present.remove(0); 
+                t_until_empty = 0; 
+                query_sent = false;
+            }
+        }
+
+        output: {
+            car_out = { 
+                car_id: car.id, 
+                departure_time: CurrentTime,
+                distance_travelled: car.distance_travelled + road_length,
+                v_min: car.v_min,
+                v_max: car.v_max,
+                v_pref: car.v_pref,
+                v: car.v,
+                creation_time: car.creation_time
+            };
+        }
+    }
+
+    // 4A. ANSWER EMPTY (Returns 0)
+    stateDefinition AnswerEmpty: {
+        time-advance: 0 TimeUnits
+        transitions: {
+            (returnToIdle) => {
+                state.name becomes Idle;
+            }
+        }
+        output: {
+            qSendAck = 0;
+        }
+    }
+
+    // 4B. ANSWER BLOCKED (Returns Infinity)
+    stateDefinition AnswerBlocked: {
+        time-advance: 0 TimeUnits
+        transitions: {
+            // Came from CheckNextSegment (Query not sent yet)
+            (returnToCheck) with query_sent == false => {
+                state.name becomes CheckNextSegment;
+                prev_wait_for_answer = true;
+            }
+            // Came from Occupied (Waiting for Ack)
+            (returnToOccupiedWaitForAnswer) with query_sent == true => {
+                state.name becomes Occupied;
+                prev_wait_for_answer = true;
+            }
+        }
+        output: {
+            qSendAck = road_length;
+        }
+    }
+
+    // 4C. ANSWER TIME (Returns t_until_empty)
+    stateDefinition AnswerTime: {
+        time-advance: 0 TimeUnits
+        transitions: {
+            (returnToIdle) with cars_present.length() == 0 => {
+                state.name becomes Idle;
+            }
+            (returnToOccupiedfromAT) => {
+                state.name becomes Occupied;
+                prev_wait_for_answer = false;
+            }
+            (carEnter) with InPort car_in.any and cars_present.length() == 0 => {
+                state.name becomes CheckNextSegment;
+                query_sent = false;
+                
+                car.id = InPort car_in.first.car_id;
+                car.v_pref = InPort car_in.first.v_pref;
+                car.v_max = InPort car_in.first.v_max;
+                car.v_min = InPort car_in.first.v_min;
+                car.entry_time = CurrentTime;
+                car.creation_time = InPort car_in.first.creation_time;
+                car.distance_travelled = InPort car_in.first.distance_travelled;
+                car.v = InPort car_in.first.v; 
+                
+                t_until_empty = Infinity; 
+                cars_present.push(car.id);
+            }
+        }
+        output: {
+            qSendAck = t_until_empty;
+        }
+    }
+
+    // 5. CRASHED
+    stateDefinition Crashed: {
+        time-advance: Infinity TimeUnits
+        transitions: {} 
+        output: {}
+    }
+}

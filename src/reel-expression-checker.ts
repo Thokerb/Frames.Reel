@@ -153,6 +153,18 @@ export class ReelExpressionChecker {
 			return {...leftType, which: 'left'};
 		}
 
+		if(node.operator === "?"){
+			if(leftType !== 'BooleanExpression'){
+				return <Error>{
+					error: `Type '${leftType}' is not compatible to type 'BooleanExpression' for operator '?'.`,
+					node: node,
+					property: 'left',
+					which: 'left'
+				}
+			}
+			return this.CheckType(node.right, illegalPortType);
+		}
+
 		let rightType = this.CheckType(node.right, illegalPortType);
 
 		if (ReelExpressionChecker.isError(rightType)) {
@@ -231,7 +243,7 @@ export class ReelExpressionChecker {
 		return current;
 	}
 
-	public static  isComparisonOperator(operator: "!=" | "*" | "+" | "-" | "/" | "<" | "<=" | "=" | "==" | ">" | ">=" | "and" | "or") {
+	public static  isComparisonOperator(operator: "!=" | "*" | "+" | "-" | "/" | "<" | "<=" | "=" | "==" | ">" | ">=" | "and" | "or" | "?" | ":"): boolean {
 		return operator === "!=" || operator === "==" || operator === "<" || operator === "<=" || operator === ">" || operator === ">=";
 	}
 

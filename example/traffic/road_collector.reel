@@ -1,0 +1,63 @@
+state RoadCollectorState {
+    states: [Collecting | QueryReply];
+    initial = Collecting;
+    
+    array int arr_input = [];
+    array int waiting_time = [];
+    int time;
+    int currentTimeV;
+}
+
+export atomic model RoadCollector {
+    state: RoadCollectorState
+    
+    section Ports {
+        // Outputting a Job object
+        {int car_id; int v_pref; int v_max; int v_min; int departure_time; int distance_travelled; int v;int creation_time;} InPort car_in; 
+        bool InPort qRecv;
+        int OutPort qSendAck; // t_until_dep
+    }
+
+    stateDefinition Collecting: {
+        time-advance: Infinity TimeUnits
+        
+        transitions: {
+
+            (collectAndQueryReply) with InPort car_in.any and InPort qRecv.any => {
+                state.name becomes QueryReply;
+                currentTimeV = CurrentTime;
+                time = CurrentTime - InPort car_in.first.creation_time;
+                arr_input.append(time);
+            }
+
+            (collect) with InPort car_in.any => {
+                state.name becomes Collecting;
+                currentTimeV = CurrentTime;
+                time = CurrentTime - InPort car_in.first.creation_time;
+                arr_input.append(time);
+            }
+            (queryReply) with InPort qRecv.any => {    
+                state.name becomes QueryReply;
+                currentTimeV = CurrentTime;
+            }
+        }
+
+        output: {
+        
+        }
+    }
+
+    stateDefinition QueryReply : {
+        time-advance: 0 TimeUnits // theoretically here could also be the observe delay
+
+        transitions: {
+            (sendReply) => {
+                state.name becomes Collecting;
+            }
+        }
+
+        output: {
+            qSendAck = 0;
+        }
+    }
+}

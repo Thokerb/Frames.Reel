@@ -36,7 +36,7 @@ export interface ExpressionTreeJson {
 }
 
 export type ExpressionType = 'Literal' | 'BinaryExpression';
-export type Operator = "Literal" | "ArrayGet" |"ArrayAppend" | "ArrayPrepend" | "ArrayLength" |"ArrayRemove" | "ArrayContains" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" | "%" | "and" | "or" | "!" | "=";
+export type Operator = "Literal" | "ArrayGet" |"ArrayAppend" | "ArrayPrepend" | "ArrayLength" |"ArrayRemove" | "ArrayContains" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" | "%" | "and" | "or" | "!" | "=" | "?" | ":" ;
 
 export interface OutputJson {
 	port: string; // Name of the port

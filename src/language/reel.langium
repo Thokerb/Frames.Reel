@@ -221,13 +221,22 @@ Addition infers Expression:
     Multiplication ({infer BinaryExpression.left=current} operator=('+' | '-') right=Multiplication)*;
 
 Multiplication infers Expression:
-    Logical ({infer BinaryExpression.left=current} operator=('*' | '/') right=Logical)*;
+    Conditional ({infer BinaryExpression.left=current} operator=('*' | '/') right=Conditional)*;
+
+Conditional infers Expression:
+    ConditionEitherOr ({infer BinaryExpression.left=current} operator='?' right=ConditionEitherOr)*;
+
+ConditionEitherOr infers Expression:
+    Logical ({infer BinaryExpression.left=current} operator=':' right=Logical)*;
 
 Logical infers Expression:
     Comparison ({infer BinaryExpression.left=current} operator=('and' | 'or') right=Comparison)*;
 
 Comparison infers Expression:
     Primary ({infer BinaryExpression.left=current} operator=('<' | '<=' | '>' | '>=' | '==' | '!=') right=Primary)*;
+
+
+
 
 
 Primary infers Expression:

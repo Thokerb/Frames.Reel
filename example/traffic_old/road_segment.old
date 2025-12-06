@@ -1,0 +1,79 @@
+state RoadSegmentState {
+    states: [AwaitCar  | CheckNextSegment ];
+    initial = AwaitCar;
+    
+    // Configuration
+    int road_length = 20;
+    int v_max = 20;
+    int observe_delay; 
+
+    // internal state
+    int time_until_car_leaves = Infinity;
+    array int cars_present = [];
+}
+
+export atomic model RoadSegment {
+    state: RoadSegmentState {
+        initial = AwaitCar;
+    }
+
+    section Ports {
+        // Outputting a Job object
+        {int car_id; int v_pref; int v_max; int v_min; int departure_time; int distance_travelled;} OutPort car_out; 
+        bool OutPort query;
+        int InPort qSack; // t_until_dep
+    }
+
+    stateDefinition AwaitCar: {
+        time-advance: time_until_car_leaves TimeUnits
+
+        transitions: {
+            (receiveAck) with InPort qSack.any=> {
+                state.name becomes Generating;
+                time_until_generating = InPort qSack.first;
+            }
+            
+            (sendQuery) => {
+                state.name becomes GettingReadyToGenerate;
+                time_until_generating = Infinity; // so no more internal Transition happens that triggers query, alternatively an extra state could be added
+            }
+        }
+
+        output: {
+            query= true;
+        }
+
+    }
+
+    stateDefinition Generating: {
+        time-advance: 0 TimeUnits
+
+        transitions: {
+            (generate) with num_to_generate > 1 => {
+                state.name becomes GettingReadyToGenerate;
+                time_until_generating = min_inter_arrival_time;
+            }
+            (lastGenerate) => {
+                state.name becomes Stopped;
+            }
+
+        }
+        output: {
+            // Create car
+            car_out = { 
+                car_id: current_car_id, 
+                departure_time: CurrentTime,
+                distance_travelled: 0,
+                max_acceleration: max_acceleration,
+                max_deceleration: max_deceleration,
+                v_pref: v_pref    
+            };
+        }
+    }
+    
+    stateDefinition Stopped: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {}
+    }
+}

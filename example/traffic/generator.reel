@@ -1,0 +1,94 @@
+state RoadGeneratorState {
+    states: [GettingReadyToGenerate | Generating | Stopped];
+    initial = GettingReadyToGenerate;
+    
+    // Configuration
+    int num_to_generate = 500;
+    int current_car_id = 1;
+    int min_inter_arrival_time = 20;
+    int v_max = 15;
+    int v_min = 5;
+    int v_pref = 10;
+
+    // internal state
+    int time_until_generating = 0;
+    int requiredDelay = 0;
+}
+
+export atomic model RoadGenerator {
+    state: RoadGeneratorState {
+        initial = GettingReadyToGenerate;
+    }
+
+    section Ports {
+        // Outputting a Job object
+        {int car_id; int v_pref; int v_max; int v_min; int departure_time; int distance_travelled;int v;int creation_time;} OutPort car_out; 
+        bool OutPort query;
+        int InPort qSack; // t_until_dep
+    }
+
+    stateDefinition GettingReadyToGenerate: {
+        time-advance: time_until_generating TimeUnits
+
+        transitions: {
+            (receiveAck) with InPort qSack.any=> {
+                state.name becomes Generating;
+                requiredDelay = InPort qSack.first;
+            }
+            
+            (sendQuery) => {
+                state.name becomes GettingReadyToGenerate;
+                time_until_generating = Infinity; // so no more internal Transition happens that triggers query, alternatively an extra state could be added
+            }
+        }
+
+        output: {
+            query= true;
+        }
+
+    }
+
+    stateDefinition Generating: {
+        time-advance: requiredDelay TimeUnits
+
+        transitions: {
+
+            (newDelay) with InPort qSack.any=> {
+                state.name becomes Generating;
+                requiredDelay = InPort qSack.first;
+            }
+
+            (generate) with num_to_generate > 1 => {
+                state.name becomes GettingReadyToGenerate;
+                num_to_generate = num_to_generate - 1;
+                time_until_generating = min_inter_arrival_time;
+                current_car_id = current_car_id + 1;
+            }
+            (lastGenerate) => {
+                state.name becomes Stopped;
+                num_to_generate = num_to_generate - 1;
+                current_car_id = current_car_id + 1;
+            }
+
+        }
+        output: {
+            // Create car
+            car_out = { 
+                car_id: current_car_id, 
+                departure_time: CurrentTime,
+                distance_travelled: 0,
+                v_max: v_pref + v_pref / 2,
+                v_min: 1,
+                v_pref: v_pref,
+                v: v_pref,
+                creation_time: CurrentTime
+            };
+        }
+    }
+    
+    stateDefinition Stopped: {
+        time-advance: Infinity TimeUnits
+        transitions: {}
+        output: {}
+    }
+}
