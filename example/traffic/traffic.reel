@@ -1,5 +1,5 @@
 import atomic RoadGenerator from "./generator.reel"
-import atomic RoadSegment from "./road_segment.reel"
+import atomic RoadSegment2 from "./road_segment2.reel"
 import atomic RoadCollector from "./road_collector.reel"
 
 coupled model Traffic {
@@ -7,60 +7,97 @@ coupled model Traffic {
     RoadGenerator g with RoadGeneratorState {
         initial = GettingReadyToGenerate;
         v_pref = 80;
-        num_to_generate= 20;
+        num_to_generate= 100;
         min_inter_arrival_time = 0;
     }
 
-    RoadSegment rs1 with RoadSegmentState{
+    RoadSegment2 rs1 with RoadSegment2State{
         initial = Idle;
         road_length = 800;
-        observe_delay = 1;
+        observe_delay = 2;
     }
-    RoadSegment rs2 with RoadSegmentState{
+    RoadSegment2 rs2 with RoadSegment2State{
         initial = Idle;
         road_length = 800;
-        observe_delay = 1;
+        observe_delay = 2;
     }
-    RoadSegment rs3 with RoadSegmentState {
+    RoadSegment2 rs3 with RoadSegment2State {
         initial = Idle;
         road_length = 800;
-        observe_delay = 1;
+        observe_delay = 2;
     }
-    RoadSegment rs4 with RoadSegmentState{
+        RoadSegment2 rs4 with RoadSegment2State {
+        initial = Idle;
+        road_length = 800;
+        observe_delay = 2;
+    }
+        RoadSegment2 rs5 with RoadSegment2State {
+        initial = Idle;
+        road_length = 800;
+        observe_delay = 2;
+    }
+        RoadSegment2 rs6 with RoadSegment2State {
+        initial = Idle;
+        road_length = 800;
+        observe_delay = 2;
+    }
+        RoadSegment2 rs7 with RoadSegment2State {
+        initial = Idle;
+        road_length = 800;
+        observe_delay = 2;
+    }
+    RoadSegment2 rs8 with RoadSegment2State{
         initial = Idle;
         road_length = 3200;
-        observe_delay = 1;
+        observe_delay = 2;
     }
     RoadCollector c with RoadCollectorState
 
 // --- Couplings ---
 
     // 1. Generator to First Road Segment
-    // The generator creates cars and pushes them into the first segment
     Connect g.car_out to rs1.car_in
     Connect g.query to rs1.qRecv
     Connect rs1.qSendAck to g.qSack
 
     // 2. Road Segment 1 to Road Segment 2
-    // Cars leaving RS1 enter RS2
     Connect rs1.car_out to rs2.car_in
     Connect rs1.query to rs2.qRecv
     Connect rs2.qSendAck to rs1.qSack
 
     // 3. Road Segment 2 to Road Segment 3
-    // Cars leaving RS2 enter RS3
     Connect rs2.car_out to rs3.car_in
     Connect rs2.query to rs3.qRecv
     Connect rs3.qSendAck to rs2.qSack
-    // 2. Road Segment 1 to Road Segment 2
-    // Cars leaving RS1 enter RS2
+
+    // 4. Road Segment 3 to Road Segment 4
     Connect rs3.car_out to rs4.car_in
     Connect rs3.query to rs4.qRecv
     Connect rs4.qSendAck to rs3.qSack
 
-    Connect rs4.car_out to c.car_in
-    Connect rs4.query to c.qRecv
-    Connect c.qSendAck to rs4.qSack
+    // 5. Road Segment 4 to Road Segment 5
+    Connect rs4.car_out to rs5.car_in
+    Connect rs4.query to rs5.qRecv
+    Connect rs5.qSendAck to rs4.qSack
 
+    // 6. Road Segment 5 to Road Segment 6
+    Connect rs5.car_out to rs6.car_in
+    Connect rs5.query to rs6.qRecv
+    Connect rs6.qSendAck to rs5.qSack
+
+    // 7. Road Segment 6 to Road Segment 7
+    Connect rs6.car_out to rs7.car_in
+    Connect rs6.query to rs7.qRecv
+    Connect rs7.qSendAck to rs6.qSack
+
+    // 8. Road Segment 7 to Road Segment 8
+    Connect rs7.car_out to rs8.car_in
+    Connect rs7.query to rs8.qRecv
+    Connect rs8.qSendAck to rs7.qSack
+
+    // 9. Road Segment 8 to Collector
+    Connect rs8.car_out to c.car_in
+    Connect rs8.query to c.qRecv
+    Connect c.qSendAck to rs8.qSack
 }
     

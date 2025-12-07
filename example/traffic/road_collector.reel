@@ -48,7 +48,7 @@ export atomic model RoadCollector {
     }
 
     stateDefinition QueryReply : {
-        time-advance: 0 TimeUnits // theoretically here could also be the observe delay
+        time-advance: 1 TimeUnits // theoretically here could also be the observe delay
 
         transitions: {
             (sendReply) => {
