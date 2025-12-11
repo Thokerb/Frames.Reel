@@ -1,4 +1,4 @@
-state RoadSegmentState {
+state RoadSegmentStateOld {
     // UPDATED: Split AnswerUpstream into 3 specific states
     states: [Idle | CheckNextSegment | Occupied | AnswerEmpty | AnswerBlocked | AnswerTime | Crashed];
     initial = Idle;
@@ -40,8 +40,8 @@ state RoadSegmentState {
     array int cars_present = [];
 }
 
-export atomic model RoadSegment {
-    state: RoadSegmentState {
+export atomic model RoadSegmentOld {
+    state: RoadSegmentStateOld {
         initial = Idle;
     }
 

@@ -1,12 +1,16 @@
-state RoadSegment2State {
+state RoadSegmentState {
     // UPDATED: Split AnswerUpstream into 3 specific states
-    states: [Idle | OccupiedSend | OccupiedWaitForAnswer | OccupiedFixed | AnswerEmpty | AnswerBlocked | AnswerBlocked2 | AnswerTime | Crashed];
+    states: [Idle | OccupiedSend | OccupiedWaitForAnswer | OccupiedFixed | AnswerEmpty | AnswerBlocked | AnswerBlocked2 | AnswerTime| AnswerTime2 | Crashed];
     initial = Idle;
     
     // Configuration
     int road_length = 200; 
     // int v_max_on_road = 20;
     int observe_delay = 10; 
+
+    int count = 0;
+    bool shouldResolve = false;
+    int resolvedRoadLength = 0;
 
     // Logic Flags
     bool query_sent = false; 
@@ -35,13 +39,16 @@ state RoadSegment2State {
     int t_no_coll = 0;
     int v_new = 0;
 
+    int reCalcStartTime = 0;
+
     bool prev_wait_for_answer = false;
+    int resolveAfter = 0;
     
     array int cars_present = [];
 }
 
-export atomic model RoadSegment2 {
-    state: RoadSegment2State {
+export atomic model RoadSegment {
+    state: RoadSegmentState {
         initial = Idle;
     }
 
@@ -97,6 +104,7 @@ export atomic model RoadSegment2 {
             // We must treat this as "Blocked" (Infinity) to prevent crashes.
             (receiveQuery) with InPort qRecv.any => {
                 state.name becomes AnswerBlocked;
+                prev_wait_for_answer = true;
             }
 
             (sendQuery) => {
@@ -129,6 +137,7 @@ export atomic model RoadSegment2 {
                 v_new = v_new > car.v_max ? car.v_max : v_new;
                 v_new = v_new < car.v_min ? car.v_min : v_new;
                 car.v = v_new;
+                reCalcStartTime = CurrentTime;
                 time_until_car_leaves =  v_new;
                 t_until_empty = time_until_car_leaves;
             }
@@ -144,6 +153,7 @@ export atomic model RoadSegment2 {
                 v_new = v_new > car.v_max ? car.v_max : v_new;
                 v_new = v_new < car.v_min ? car.v_min : v_new;
                 car.v = v_new;
+                reCalcStartTime = CurrentTime;
                 time_until_car_leaves =  v_new;
                 t_until_empty = time_until_car_leaves;
             }
@@ -171,6 +181,12 @@ export atomic model RoadSegment2 {
                 cars_present.remove(0); 
                 t_until_empty = 0; 
                 query_sent = false;
+                road_length = shouldResolve and count > resolveAfter ? resolvedRoadLength : road_length;
+                count = count + 1;
+            }
+            
+            (receiveQ) with InPort qRecv.any => {
+                state.name becomes AnswerTime2;
             }
         }
 
@@ -260,6 +276,24 @@ export atomic model RoadSegment2 {
             qSendAck = t_until_empty;
         }
     }
+
+        // 4C. ANSWER TIME (Returns t_until_empty)
+    stateDefinition AnswerTime2: {
+        time-advance: observe_delay TimeUnits
+        transitions: {
+            (goToOccupiedFixed) => {
+                state.name becomes OccupiedFixed;
+                t_until_empty = t_until_empty - (CurrentTime - reCalcStartTime);
+                time_until_car_leaves = time_until_car_leaves - (CurrentTime - reCalcStartTime);
+                reCalcStartTime = CurrentTime;
+                prev_wait_for_answer = false;
+            }
+        }
+        output: {
+            qSendAck = t_until_empty - (CurrentTime - reCalcStartTime);
+        }
+    }
+
 
     // 5. CRASHED
     stateDefinition Crashed: {

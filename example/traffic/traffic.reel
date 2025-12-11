@@ -1,5 +1,5 @@
 import atomic RoadGenerator from "./generator.reel"
-import atomic RoadSegment2 from "./road_segment2.reel"
+import atomic RoadSegment from "./road_segment2.reel"
 import atomic RoadCollector from "./road_collector.reel"
 
 coupled model Traffic {
@@ -11,45 +11,48 @@ coupled model Traffic {
         min_inter_arrival_time = 0;
     }
 
-    RoadSegment2 rs1 with RoadSegment2State{
+    RoadSegment rs1 with RoadSegmentState{
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-    RoadSegment2 rs2 with RoadSegment2State{
+    RoadSegment rs2 with RoadSegmentState{
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-    RoadSegment2 rs3 with RoadSegment2State {
+    RoadSegment rs3 with RoadSegmentState {
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-        RoadSegment2 rs4 with RoadSegment2State {
+        RoadSegment rs4 with RoadSegmentState {
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-        RoadSegment2 rs5 with RoadSegment2State {
+        RoadSegment rs5 with RoadSegmentState {
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-        RoadSegment2 rs6 with RoadSegment2State {
+        RoadSegment rs6 with RoadSegmentState {
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-        RoadSegment2 rs7 with RoadSegment2State {
+        RoadSegment rs7 with RoadSegmentState {
         initial = Idle;
         road_length = 800;
         observe_delay = 2;
     }
-    RoadSegment2 rs8 with RoadSegment2State{
+    RoadSegment rs8 with RoadSegmentState{
         initial = Idle;
         road_length = 3200;
         observe_delay = 2;
+        shouldResolve = true;
+        resolvedRoadLength = 800;
+        resolveAfter = 10;
     }
     RoadCollector c with RoadCollectorState
 
