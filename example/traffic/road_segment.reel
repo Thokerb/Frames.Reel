@@ -1,12 +1,16 @@
-state RoadSegmentStateOld {
+state RoadSegmentState {
     // UPDATED: Split AnswerUpstream into 3 specific states
-    states: [Idle | CheckNextSegment | Occupied | AnswerEmpty | AnswerBlocked | AnswerTime | Crashed];
+    states: [Idle | OccupiedSend | OccupiedWaitForAnswer | OccupiedFixed | AnswerEmpty | AnswerBlocked | AnswerBlocked2 | AnswerTime| AnswerTime2 | Crashed];
     initial = Idle;
     
     // Configuration
     int road_length = 200; 
     // int v_max_on_road = 20;
     int observe_delay = 10; 
+
+    int count = 0;
+    bool shouldResolve = false;
+    int resolvedRoadLength = 0;
 
     // Logic Flags
     bool query_sent = false; 
@@ -35,13 +39,16 @@ state RoadSegmentStateOld {
     int t_no_coll = 0;
     int v_new = 0;
 
+    int reCalcStartTime = 0;
+
     bool prev_wait_for_answer = false;
+    int resolveAfter = 0;
     
     array int cars_present = [];
 }
 
-export atomic model RoadSegmentOld {
-    state: RoadSegmentStateOld {
+export atomic model RoadSegment {
+    state: RoadSegmentState {
         initial = Idle;
     }
 
@@ -61,9 +68,8 @@ export atomic model RoadSegmentOld {
 
         transitions: {
             (carEnter) with InPort car_in.any and cars_present.length() == 0 => {
-                state.name becomes CheckNextSegment;
-                query_sent = false;
-                
+                state.name becomes OccupiedSend;
+
                 car.id = InPort car_in.first.car_id;
                 car.v_pref = InPort car_in.first.v_pref;
                 car.v_max = InPort car_in.first.v_max;
@@ -73,7 +79,6 @@ export atomic model RoadSegmentOld {
                 car.distance_travelled = InPort car_in.first.distance_travelled;
                 car.v = InPort car_in.first.v; 
                 
-                t_until_empty = Infinity; 
                 cars_present.push(car.id);
             }
             
@@ -90,38 +95,20 @@ export atomic model RoadSegmentOld {
     }
 
     // 2. CHECK NEXT SEGMENT
-    stateDefinition CheckNextSegment: {
-        time-advance: observe_delay TimeUnits
+    stateDefinition OccupiedSend: {
+        time-advance: 0 TimeUnits
 
         transitions: {
-            // A1. Ack received EARLY (Next segment EMPTY/Fast)
-            (receiveAckGo) with InPort qSack.any => {
-                state.name becomes Occupied;
-                query_sent = true; 
-                t_no_coll = InPort qSack.first;
-                elapsed = CurrentTime - car.entry_time;
-                xi = elapsed * car.v;
-                remaining_x = road_length - xi;// remaining_x /
-                v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
-                v_new =  v_new > t_no_coll ? v_new : t_no_coll;  
-                v_new = v_new > car.v_max ? car.v_max : v_new;
-                v_new = v_new < car.v_min ? car.v_min : v_new;
-                car.v = v_new;
-                time_until_car_leaves =  v_new;
-                t_until_empty = time_until_car_leaves;
-            }
 
             // LOGIC CHANGE: In delay phase, we don't know our speed. 
             // We must treat this as "Blocked" (Infinity) to prevent crashes.
             (receiveQuery) with InPort qRecv.any => {
                 state.name becomes AnswerBlocked;
+                prev_wait_for_answer = true;
             }
 
             (sendQuery) => {
-                state.name becomes Occupied;
-                query_sent = true;
-                time_until_car_leaves = Infinity; 
-                t_until_empty = Infinity;
+                state.name becomes OccupiedWaitForAnswer;
             }
         }
         
@@ -130,15 +117,16 @@ export atomic model RoadSegmentOld {
         }
     }
 
+
     // 3. OCCUPIED
-    stateDefinition Occupied: {
-        time-advance: time_until_car_leaves TimeUnits
+    stateDefinition OccupiedWaitForAnswer: {
+        time-advance: Infinity TimeUnits
 
         transitions: {
-
-
-            // AA1. Ack Received (Fast or slow)
-            (receiveAckGoAndPrevWait) with InPort qSack.any and prev_wait_for_answer => {
+            (receiveQuery) with InPort qRecv.any => {
+                state.name becomes AnswerBlocked2;
+            }
+            (receiveAckAndReanswer) with InPort qSack.any and prev_wait_for_answer => {
                 state.name becomes AnswerTime;
                 t_no_coll = InPort qSack.first;
                 elapsed = CurrentTime - car.entry_time;
@@ -149,50 +137,39 @@ export atomic model RoadSegmentOld {
                 v_new = v_new > car.v_max ? car.v_max : v_new;
                 v_new = v_new < car.v_min ? car.v_min : v_new;
                 car.v = v_new;
+                reCalcStartTime = CurrentTime;
                 time_until_car_leaves =  v_new;
                 t_until_empty = time_until_car_leaves;
             }
 
-            // A1. Ack Received (Fast)
-            (receiveAckGo) with InPort qSack.any  => {
-                state.name becomes Occupied;
+            (receiveAck) with InPort qSack.any => {
+                state.name becomes OccupiedFixed;
                 t_no_coll = InPort qSack.first;
                 elapsed = CurrentTime - car.entry_time;
                 xi = elapsed * car.v;
                 remaining_x = road_length - xi;// remaining_x /
                 v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
-                v_new =  v_new > t_no_coll ? v_new : t_no_coll;   
+                v_new =  v_new > t_no_coll ? v_new : t_no_coll;  
                 v_new = v_new > car.v_max ? car.v_max : v_new;
                 v_new = v_new < car.v_min ? car.v_min : v_new;
                 car.v = v_new;
-                time_until_car_leaves = v_new;
+                reCalcStartTime = CurrentTime;
+                time_until_car_leaves =  v_new;
                 t_until_empty = time_until_car_leaves;
             }
 
-            // LOGIC CHANGE: Split Receive Query based on Physics State
+        }
+        output: {}
+    }
 
-            // B1. We are waiting for Ack (Infinity) -> We must answer Infinity
-            (receiveQueryWait) with InPort qRecv.any and time_until_car_leaves == Infinity => {
-                 state.name becomes AnswerBlocked;
-            }
 
-            // B2. We are moving (Not Infinity) -> We can answer the real time
-            (receiveQueryMove) with InPort qRecv.any and time_until_car_leaves != Infinity => {
-                 state.name becomes AnswerTime;
-                 
-                 // Update physics
-                 elapsed = CurrentTime - car.entry_time;
-                 xi = elapsed * car.v;
-                 remaining_x = road_length - xi;
-                 v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
-                 v_new =  v_new > t_no_coll ? v_new : t_no_coll;   
-                 v_new = v_new > car.v_max ? car.v_max : v_new;
-                 v_new = v_new < car.v_min ? car.v_min : v_new;
-                 car.v = v_new;
-                 time_until_car_leaves = v_new;
-                 t_until_empty = time_until_car_leaves;
-            }
-            
+    // 3. OCCUPIED
+    stateDefinition OccupiedFixed: {
+        time-advance: time_until_car_leaves TimeUnits
+
+        transitions: {
+
+            // LOGIC CHANGE: Split Receive Query based on Physics State            
             (collision) with InPort car_in.any => {
                 state.name becomes Crashed;
                 car.v = 0;
@@ -200,10 +177,16 @@ export atomic model RoadSegmentOld {
             }
 
             (carExit) => {
-                state.name becomes AnswerTime;
+                state.name becomes Idle;
                 cars_present.remove(0); 
                 t_until_empty = 0; 
                 query_sent = false;
+                road_length = shouldResolve and count > resolveAfter ? resolvedRoadLength : road_length;
+                count = count + 1;
+            }
+            
+            (receiveQ) with InPort qRecv.any => {
+                state.name becomes AnswerTime2;
             }
         }
 
@@ -223,10 +206,11 @@ export atomic model RoadSegmentOld {
 
     // 4A. ANSWER EMPTY (Returns 0)
     stateDefinition AnswerEmpty: {
-        time-advance: 0 TimeUnits
+        time-advance: observe_delay TimeUnits
         transitions: {
-            (returnToIdle) => {
+            (goBackToIdle) => {
                 state.name becomes Idle;
+                prev_wait_for_answer = false;
             }
         }
         output: {
@@ -236,21 +220,46 @@ export atomic model RoadSegmentOld {
 
     // 4B. ANSWER BLOCKED (Returns Infinity)
     stateDefinition AnswerBlocked: {
-        time-advance: 0 TimeUnits
+        time-advance: observe_delay TimeUnits
         transitions: {
-            // Came from CheckNextSegment (Query not sent yet)
-            (returnToCheck) with query_sent == false => {
-                state.name becomes CheckNextSegment;
-                prev_wait_for_answer = true;
-            }
             // Came from Occupied (Waiting for Ack)
-            (returnToOccupiedWaitForAnswer) with query_sent == true => {
-                state.name becomes Occupied;
+            (goBackToOccSend) => {
+                state.name becomes OccupiedSend;
                 prev_wait_for_answer = true;
             }
         }
         output: {
-            qSendAck = road_length;
+            // qSendAck = road_length;
+        }
+    }
+
+        // 4B. ANSWER BLOCKED (Returns Infinity)
+    stateDefinition AnswerBlocked2: {
+        time-advance: observe_delay TimeUnits
+        transitions: {
+            // Came from Occupied (Waiting for Ack)
+            (goBackToOccSend) => {
+                state.name becomes OccupiedWaitForAnswer;
+                prev_wait_for_answer = true;
+            }
+            (skipWaitBecauseAlreadyReceivedAnswer) with InPort qSack.any => {
+                state.name becomes AnswerTime;
+                prev_wait_for_answer = true;
+                t_no_coll = InPort qSack.first;
+                elapsed = CurrentTime - car.entry_time;
+                xi = elapsed * car.v;
+                remaining_x = road_length - xi;// remaining_x /
+                v_new =  remaining_x / car.v_pref < car.v_max ? car.v_pref : car.v_max; 
+                v_new =  v_new > t_no_coll ? v_new : t_no_coll;  
+                v_new = v_new > car.v_max ? car.v_max : v_new;
+                v_new = v_new < car.v_min ? car.v_min : v_new;
+                car.v = v_new;
+                time_until_car_leaves =  v_new;
+                t_until_empty = time_until_car_leaves;
+            }
+        }
+        output: {
+            // qSendAck = road_length;
         }
     }
 
@@ -258,34 +267,33 @@ export atomic model RoadSegmentOld {
     stateDefinition AnswerTime: {
         time-advance: 0 TimeUnits
         transitions: {
-            (returnToIdle) with cars_present.length() == 0 => {
-                state.name becomes Idle;
-            }
-            (returnToOccupiedfromAT) => {
-                state.name becomes Occupied;
+            (goToOccupiedFixed) => {
+                state.name becomes OccupiedFixed;
                 prev_wait_for_answer = false;
-            }
-            (carEnter) with InPort car_in.any and cars_present.length() == 0 => {
-                state.name becomes CheckNextSegment;
-                query_sent = false;
-                
-                car.id = InPort car_in.first.car_id;
-                car.v_pref = InPort car_in.first.v_pref;
-                car.v_max = InPort car_in.first.v_max;
-                car.v_min = InPort car_in.first.v_min;
-                car.entry_time = CurrentTime;
-                car.creation_time = InPort car_in.first.creation_time;
-                car.distance_travelled = InPort car_in.first.distance_travelled;
-                car.v = InPort car_in.first.v; 
-                
-                t_until_empty = Infinity; 
-                cars_present.push(car.id);
             }
         }
         output: {
             qSendAck = t_until_empty;
         }
     }
+
+        // 4C. ANSWER TIME (Returns t_until_empty)
+    stateDefinition AnswerTime2: {
+        time-advance: observe_delay TimeUnits
+        transitions: {
+            (goToOccupiedFixed) => {
+                state.name becomes OccupiedFixed;
+                t_until_empty = t_until_empty - (CurrentTime - reCalcStartTime);
+                time_until_car_leaves = time_until_car_leaves - (CurrentTime - reCalcStartTime);
+                reCalcStartTime = CurrentTime;
+                prev_wait_for_answer = false;
+            }
+        }
+        output: {
+            qSendAck = t_until_empty - (CurrentTime - reCalcStartTime);
+        }
+    }
+
 
     // 5. CRASHED
     stateDefinition Crashed: {
