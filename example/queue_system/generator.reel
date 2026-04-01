@@ -1,69 +1,55 @@
-// A state type for the generator
 state GeneratorState {
-    states: [ active | finished ];
-    initial = active;
-
-    // Properties that correspond to Python attributes
-    int numberJobs;       // Will be set from a constructor override
-    int generatorWaitingTime; // generator waiting time
-    int jobSize; 
-    int currentWaitingTime = 0;
-    array string test = [""];
-    array bool test2 = [false, false];
+    states: [Generating | Stopped];
+    initial = Generating;
+    
+    // Configuration
+    int num_to_generate = 500;
+    int fixed_size = 40; 
+    int inter_arrival_time = 20;
+    
+    // Internal State
+    int current_time = 0;
 }
 
-// The atomic model
-atomic model Generator {
-
+export atomic model Generator {
     state: GeneratorState {
-        initial = active;
-        // initial to_generate must be provided by a model reference
+        initial = Generating;
     }
 
     section Ports {
-        {int size; int creation_time;} OutPort out_event;
+        // Outputting a Job object
+        {int size; int creation_time;} OutPort out_event; 
     }
 
-    // State-specific behaviour
-    stateDefinition active : {
+    stateDefinition Generating: {
+        time-advance: inter_arrival_time TimeUnits
+        
 
-        // TIME ADVANCE:
-        // remaining is an object storing either:
-        //   {value="Infinity"}
-        //   {dist="exp", lambda=<gen_param>}
-        time-advance: currentWaitingTime TimeUnits
 
         transitions: {
-            (generate) with numberJobs >= 1  => {
-                state.name becomes active;
-
-                
-                // to_generate -= 1
-                numberJobs = numberJobs - 1;
-                currentWaitingTime = generatorWaitingTime; // in example this is random
-                
+            (stop) with num_to_generate <= 1 => {
+                state.name becomes Stopped;
+                num_to_generate = 0;
+                current_time = current_time + inter_arrival_time;
             }
-            (last_entry) with numberJobs == 1 => {
-                state.name becomes finished;
-                // numberJobs = numberJobs - 1;
+            (next) => {
+                state.name becomes Generating;
+                num_to_generate = num_to_generate - 1;
+                current_time = current_time + inter_arrival_time;
             }
         }
-
         output: {
-            // creation_time = current_time + remaining.timeAdvance
-            out_event = {creation_time:  22, size: generatorWaitingTime};
+            // Create Job with current time + wait time
+            out_event = { 
+                size : fixed_size, 
+                creation_time : current_time + inter_arrival_time 
+            };
         }
     }
-
-    stateDefinition finished : {
+    
+    stateDefinition Stopped: {
         time-advance: Infinity TimeUnits
-        transitions: {
-
-        }
-        output: {
-            
-        }
-
-        // In finished state, no transitions, no output
+        transitions: {}
+        output: {}
     }
 }

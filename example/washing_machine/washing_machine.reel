@@ -6,7 +6,7 @@ state BlinkingLightState {
     int WaitingTime = 2;
 }
 
-atomic2 model BlinkingLightAtomicModel {
+atomic model BlinkingLightAtomicModel {
     state: BlinkingLightState {
         initial = On;
         MaxCycles = 10;
@@ -32,7 +32,7 @@ atomic2 model BlinkingLightAtomicModel {
             }
         }
         output: {
-            PortOutTurningOff: CurrentCycle;
+            PortOutTurningOff = CurrentCycle;
         }
     }
 
@@ -47,7 +47,7 @@ atomic2 model BlinkingLightAtomicModel {
             }
         }
         output: {
-            PortOutTurningOn: CurrentCycle;
+            PortOutTurningOn = CurrentCycle;
         }
     }
 
@@ -63,7 +63,7 @@ state MachineState {
     initial = On;
 }
 
-atomic2 model MachineAtomicModel {
+atomic model MachineAtomicModel {
     state: MachineState {
         initial = On;
     }
@@ -81,7 +81,7 @@ atomic2 model MachineAtomicModel {
             }
         }
         output: {
-            PortOutFinished: 1;
+            PortOutFinished = 1;
         }
     }
 

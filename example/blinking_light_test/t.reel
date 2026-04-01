@@ -15,8 +15,9 @@
     }
 }
 
-atomic2 model BlinkingLightModel {
+atomic model BlinkingLightModel {
     state: BlinkingLightState {
+        initial=on;
         age = true;
         engine = {
             company = "ww";
@@ -36,7 +37,7 @@ atomic2 model BlinkingLightModel {
     stateDefinition on: {
         time-advance: 3 TimeUnits
         transitions: {
-            (tr1) with InPort a == true and InPort a == true => {
+            (tr1) with InPort a.first == true and InPort a.any == true => {
                 state.name becomes kabumm;
             }
             (tr2) with age => {
@@ -44,7 +45,7 @@ atomic2 model BlinkingLightModel {
             }
         }
         output: {
-            b: "2";
+            b = "2";
         }
     }
 
